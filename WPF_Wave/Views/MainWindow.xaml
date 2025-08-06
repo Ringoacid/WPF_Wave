@@ -149,6 +149,7 @@
                                     Padding="20,5,20,5"
                                     HorizontalAlignment="Center"
                                     Background="{DynamicResource AccentFillColorDefaultBrush}"
+                                    Command="{Binding ViewModel.AddTestSignalCommand}"
                                     Content="追加"
                                     FontSize="16"
                                     Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
@@ -178,20 +179,23 @@
 
             <Grid Grid.Column="2">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="30" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="2*" />
                 </Grid.ColumnDefinitions>
 
                 <uc:DragableList
+                    Margin="5"
                     x:Name="SignalDragableList"
                     Grid.Row="1"
                     Grid.Column="0"
-                    ItemsSource="{Binding ViewModel.Hoges}" />
+                    VerticalAlignment="Top"
+                    DisplayMemberPath="DisplayText"
+                    ItemsSource="{Binding ViewModel.SampleSignals}" />
 
                 <TextBlock
                     x:Name="DebugTextBlock"
