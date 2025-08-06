@@ -1,0 +1,631 @@
+$date
+	Sat Jul 26 22:48:29 2025
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1ps
+$end
+$scope module RomTest $end
+$var wire 4 ! ioBus [3:0] $end
+$var wire 8 " oInst [7:0] $end
+$var parameter 2 # DEBUG_MODE $end
+$var parameter 1 $ DIS_RAM_SUBMODE $end
+$var parameter 1 % DIS_ROM_SUBMODE $end
+$var parameter 2 & INPUT_MODE $end
+$var parameter 2 ' RUN_MODE $end
+$var reg 12 ( iAddr [11:0] $end
+$var reg 1 ) iClk $end
+$var reg 1 * iClr $end
+$var reg 1 + iCmRom $end
+$var reg 4 , iId [3:0] $end
+$var reg 8 - iInst [7:0] $end
+$var reg 4 . iIo [3:0] $end
+$var reg 2 / iMode [1:0] $end
+$var reg 1 0 iRst $end
+$var reg 1 1 iSync $end
+$scope function IsDebugMode $end
+$var reg 2 2 mode [1:0] $end
+$upscope $end
+$scope function IsInputMode $end
+$var reg 2 3 mode [1:0] $end
+$upscope $end
+$scope function IsRunMode $end
+$var reg 2 4 mode [1:0] $end
+$upscope $end
+$scope module rom $end
+$var wire 12 5 iAddr [11:0] $end
+$var wire 1 ) iClk $end
+$var wire 1 * iClr $end
+$var wire 1 + iCmRom $end
+$var wire 4 6 iId [3:0] $end
+$var wire 8 7 iInst [7:0] $end
+$var wire 4 8 iIo [3:0] $end
+$var wire 2 9 iMode [1:0] $end
+$var wire 1 0 iRst $end
+$var wire 1 1 iSync $end
+$var wire 4 : ioBus [3:0] $end
+$var wire 8 ; outputInst [7:0] $end
+$var wire 8 < oInst [7:0] $end
+$var parameter 4 = ACC_INST $end
+$var parameter 4 > ADD $end
+$var parameter 3 ? ADDR1 $end
+$var parameter 3 @ ADDR2 $end
+$var parameter 3 A ADDR3 $end
+$var parameter 4 B ADM $end
+$var parameter 4 C BBL $end
+$var parameter 4 D CLB $end
+$var parameter 4 E CLC $end
+$var parameter 4 F CMA $end
+$var parameter 4 G CMC $end
+$var parameter 4 H DAA $end
+$var parameter 4 I DAC $end
+$var parameter 4 J DCL $end
+$var parameter 2 K DEBUG_MODE $end
+$var parameter 1 L DIS_RAM_SUBMODE $end
+$var parameter 1 M DIS_ROM_SUBMODE $end
+$var parameter 3 N EXE1 $end
+$var parameter 3 O EXE2 $end
+$var parameter 3 P EXE3 $end
+$var parameter 4 Q FIM_SRC $end
+$var parameter 4 R FIN_JIN $end
+$var parameter 4 S IAC $end
+$var parameter 4 T INC $end
+$var parameter 2 U INPUT_MODE $end
+$var parameter 4 V IO_INST $end
+$var parameter 4 W ISZ $end
+$var parameter 4 X JCN $end
+$var parameter 4 Y JMS $end
+$var parameter 4 Z JUN $end
+$var parameter 4 [ KBP $end
+$var parameter 4 \ LD $end
+$var parameter 4 ] LDM $end
+$var parameter 3 ^ MEM1 $end
+$var parameter 3 _ MEM2 $end
+$var parameter 4 ` NOP $end
+$var parameter 4 a RAL $end
+$var parameter 4 b RAR $end
+$var parameter 4 c RD0 $end
+$var parameter 4 d RD1 $end
+$var parameter 4 e RD2 $end
+$var parameter 4 f RD3 $end
+$var parameter 4 g RDM $end
+$var parameter 4 h RDR $end
+$var parameter 2 i RUN_MODE $end
+$var parameter 4 j SBM $end
+$var parameter 4 k STC $end
+$var parameter 4 l SUB $end
+$var parameter 4 m TCC $end
+$var parameter 4 n TCS $end
+$var parameter 4 o WMP $end
+$var parameter 4 p WR0 $end
+$var parameter 4 q WR1 $end
+$var parameter 4 r WR2 $end
+$var parameter 4 s WR3 $end
+$var parameter 4 t WRM $end
+$var parameter 4 u WRR $end
+$var parameter 4 v XCH $end
+$var reg 8 w addrForRunDebugMode [7:0] $end
+$var reg 1 x isIo $end
+$var reg 1 y isOutputDataToBus $end
+$var reg 1 z isRdr $end
+$var reg 1 { isSelectRom $end
+$var reg 1 | isSrc $end
+$var reg 1 } isSrcSelectedRom $end
+$var reg 4 ~ outputDataToBus [3:0] $end
+$var reg 3 !" subCycle [2:0] $end
+$scope function GetAddr $end
+$var reg 12 "" addr [11:0] $end
+$var reg 8 #" addrForRunDebugMode [7:0] $end
+$var reg 2 $" mode [1:0] $end
+$upscope $end
+$scope function GetClk $end
+$var reg 12 %" addr [11:0] $end
+$var reg 1 &" clk $end
+$var reg 4 '" id [3:0] $end
+$var reg 2 (" mode [1:0] $end
+$upscope $end
+$scope function GetWriteEnableSig $end
+$var reg 2 )" mode [1:0] $end
+$upscope $end
+$scope function IsDebugMode $end
+$var reg 2 *" mode [1:0] $end
+$upscope $end
+$scope function IsInputMode $end
+$var reg 2 +" mode [1:0] $end
+$upscope $end
+$scope function IsRunMode $end
+$var reg 2 ," mode [1:0] $end
+$upscope $end
+$scope module br $end
+$var wire 8 -" ad [7:0] $end
+$var wire 1 ." ce $end
+$var wire 1 /" clk $end
+$var wire 8 0" din [7:0] $end
+$var wire 1 1" gw_gnd $end
+$var wire 1 2" oce $end
+$var wire 1 0 reset $end
+$var wire 1 3" wre $end
+$var wire 24 4" sp_inst_0_dout_w [23:0] $end
+$var wire 8 5" dout [7:0] $end
+$scope module sp_inst_0 $end
+$var wire 14 6" AD [13:0] $end
+$var wire 3 7" BLKSEL [2:0] $end
+$var wire 1 ." CE $end
+$var wire 1 /" CLK $end
+$var wire 32 8" DI [31:0] $end
+$var wire 1 2" OCE $end
+$var wire 1 0 RESET $end
+$var wire 1 3" WRE $end
+$var wire 1 9" pce $end
+$var wire 32 :" DO [31:0] $end
+$var parameter 32 ;" BIT_WIDTH $end
+$var parameter 3 <" BLK_SEL $end
+$var parameter 256 =" INIT_RAM_00 $end
+$var parameter 256 >" INIT_RAM_01 $end
+$var parameter 256 ?" INIT_RAM_02 $end
+$var parameter 256 @" INIT_RAM_03 $end
+$var parameter 256 A" INIT_RAM_04 $end
+$var parameter 256 B" INIT_RAM_05 $end
+$var parameter 256 C" INIT_RAM_06 $end
+$var parameter 256 D" INIT_RAM_07 $end
+$var parameter 256 E" INIT_RAM_08 $end
+$var parameter 256 F" INIT_RAM_09 $end
+$var parameter 256 G" INIT_RAM_0A $end
+$var parameter 256 H" INIT_RAM_0B $end
+$var parameter 256 I" INIT_RAM_0C $end
+$var parameter 256 J" INIT_RAM_0D $end
+$var parameter 256 K" INIT_RAM_0E $end
+$var parameter 256 L" INIT_RAM_0F $end
+$var parameter 256 M" INIT_RAM_10 $end
+$var parameter 256 N" INIT_RAM_11 $end
+$var parameter 256 O" INIT_RAM_12 $end
+$var parameter 256 P" INIT_RAM_13 $end
+$var parameter 256 Q" INIT_RAM_14 $end
+$var parameter 256 R" INIT_RAM_15 $end
+$var parameter 256 S" INIT_RAM_16 $end
+$var parameter 256 T" INIT_RAM_17 $end
+$var parameter 256 U" INIT_RAM_18 $end
+$var parameter 256 V" INIT_RAM_19 $end
+$var parameter 256 W" INIT_RAM_1A $end
+$var parameter 256 X" INIT_RAM_1B $end
+$var parameter 256 Y" INIT_RAM_1C $end
+$var parameter 256 Z" INIT_RAM_1D $end
+$var parameter 256 [" INIT_RAM_1E $end
+$var parameter 256 \" INIT_RAM_1F $end
+$var parameter 256 ]" INIT_RAM_20 $end
+$var parameter 256 ^" INIT_RAM_21 $end
+$var parameter 256 _" INIT_RAM_22 $end
+$var parameter 256 `" INIT_RAM_23 $end
+$var parameter 256 a" INIT_RAM_24 $end
+$var parameter 256 b" INIT_RAM_25 $end
+$var parameter 256 c" INIT_RAM_26 $end
+$var parameter 256 d" INIT_RAM_27 $end
+$var parameter 256 e" INIT_RAM_28 $end
+$var parameter 256 f" INIT_RAM_29 $end
+$var parameter 256 g" INIT_RAM_2A $end
+$var parameter 256 h" INIT_RAM_2B $end
+$var parameter 256 i" INIT_RAM_2C $end
+$var parameter 256 j" INIT_RAM_2D $end
+$var parameter 256 k" INIT_RAM_2E $end
+$var parameter 256 l" INIT_RAM_2F $end
+$var parameter 256 m" INIT_RAM_30 $end
+$var parameter 256 n" INIT_RAM_31 $end
+$var parameter 256 o" INIT_RAM_32 $end
+$var parameter 256 p" INIT_RAM_33 $end
+$var parameter 256 q" INIT_RAM_34 $end
+$var parameter 256 r" INIT_RAM_35 $end
+$var parameter 256 s" INIT_RAM_36 $end
+$var parameter 256 t" INIT_RAM_37 $end
+$var parameter 256 u" INIT_RAM_38 $end
+$var parameter 256 v" INIT_RAM_39 $end
+$var parameter 256 w" INIT_RAM_3A $end
+$var parameter 256 x" INIT_RAM_3B $end
+$var parameter 256 y" INIT_RAM_3C $end
+$var parameter 256 z" INIT_RAM_3D $end
+$var parameter 256 {" INIT_RAM_3E $end
+$var parameter 256 |" INIT_RAM_3F $end
+$var parameter 1 }" READ_MODE $end
+$var parameter 32 ~" RESET_MODE $end
+$var parameter 2 !# WRITE_MODE $end
+$var reg 14 "# addr [13:0] $end
+$var reg 32 ## bp_reg [31:0] $end
+$var reg 32 $# bp_reg_async [31:0] $end
+$var reg 32 %# bp_reg_sync [31:0] $end
+$var reg 1 &# bs_en $end
+$var reg 1 '# mc $end
+$var reg 8 (# mem_t [7:0] $end
+$var reg 32 )# pl_reg [31:0] $end
+$var reg 32 *# pl_reg_async [31:0] $end
+$var reg 32 +# pl_reg_sync [31:0] $end
+$var reg 16384 ,# ram_MEM [16383:0] $end
+$var integer 32 -# awidth [31:0] $end
+$var integer 32 .# dwidth [31:0] $end
+$upscope $end
+$upscope $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+$comment Show the parameter values. $end
+$dumpall
+b0 !#
+b1010011010110010100111001000011 ~"
+0}"
+b0 |"
+b0 {"
+b0 z"
+b0 y"
+b0 x"
+b0 w"
+b0 v"
+b0 u"
+b0 t"
+b0 s"
+b0 r"
+b0 q"
+b0 p"
+b0 o"
+b0 n"
+b0 m"
+b0 l"
+b0 k"
+b0 j"
+b0 i"
+b0 h"
+b0 g"
+b0 f"
+b0 e"
+b0 d"
+b0 c"
+b0 b"
+b0 a"
+b0 `"
+b0 _"
+b0 ^"
+b0 ]"
+b0 \"
+b0 ["
+b0 Z"
+b0 Y"
+b0 X"
+b0 W"
+b0 V"
+b0 U"
+b0 T"
+b0 S"
+b0 R"
+b0 Q"
+b0 P"
+b0 O"
+b0 N"
+b0 M"
+b0 L"
+b0 K"
+b0 J"
+b0 I"
+b0 H"
+b0 G"
+b0 F"
+b0 E"
+b0 D"
+b0 C"
+b0 B"
+b0 A"
+b0 @"
+b0 ?"
+b0 >"
+b0 ="
+b0 <"
+b1000 ;"
+b1011 v
+b10 u
+b0 t
+b111 s
+b110 r
+b101 q
+b100 p
+b1 o
+b1001 n
+b111 m
+b1001 l
+b1010 k
+b1000 j
+b1 i
+b1010 h
+b1001 g
+b1111 f
+b1110 e
+b1101 d
+b1100 c
+b110 b
+b101 a
+b0 `
+b100 _
+b11 ^
+b1101 ]
+b1010 \
+b1100 [
+b100 Z
+b101 Y
+b1 X
+b111 W
+b1110 V
+bx0 U
+b110 T
+b10 S
+b11 R
+b10 Q
+b111 P
+b110 O
+b101 N
+1M
+0L
+b11 K
+b1101 J
+b1000 I
+b1011 H
+b11 G
+b100 F
+b1 E
+b0 D
+b1100 C
+b1011 B
+b10 A
+b1 @
+b0 ?
+b1000 >
+b1111 =
+b1 '
+bx0 &
+1%
+0$
+b11 #
+$end
+#0
+$dumpvars
+b1000 .#
+b1011 -#
+b0 ,#
+b0 +#
+b0 *#
+b0 )#
+b0 (#
+0'#
+1&#
+b0 %#
+b0 $#
+b0 ##
+b0 "#
+b0 :"
+19"
+b0 8"
+b0 7"
+b0 6"
+b0 5"
+b0 4"
+13"
+12"
+01"
+b0 0"
+0/"
+1."
+b0 -"
+bx ,"
+bx0 +"
+bx0 *"
+bx0 )"
+bx0 ("
+b0 '"
+0&"
+b0 %"
+bx0 $"
+b0 #"
+b0 ""
+b111 !"
+b0 ~
+0}
+0|
+0{
+0z
+0y
+0x
+b0 w
+bx <
+b0 ;
+bz :
+bx0 9
+b0 8
+b0 7
+b0 6
+b0 5
+bx 4
+bx 3
+bx 2
+01
+10
+bx0 /
+b0 .
+b0 -
+b0 ,
+0+
+0*
+0)
+b0 (
+bx "
+bz !
+$end
+#5000
+1'#
+1/"
+1&"
+1)
+#10000
+0/"
+0&"
+0)
+#15000
+0'#
+1/"
+1&"
+1)
+#20000
+b1000 "#
+0/"
+b1 %"
+0&"
+b1000 6"
+b1 -"
+b1 ""
+0)
+b10101010 8"
+b10101010 -
+b10101010 7
+b10101010 0"
+b1 (
+b1 5
+00
+#25000
+b10101010 (#
+1'#
+b1010101000000000 ,#
+1/"
+1&"
+1)
+#30000
+b0 (#
+b10000 "#
+0/"
+b10 %"
+0&"
+b10000 6"
+b10 -"
+b10 ""
+0)
+b1010101 8"
+b1010101 -
+b1010101 7
+b1010101 0"
+b10 (
+b10 5
+#35000
+b1010101 (#
+0'#
+b10101011010101000000000 ,#
+1/"
+1&"
+1)
+#40000
+b0 "
+b0 <
+b10101010 (#
+b1000 "#
+b11 *"
+0/"
+b11 +"
+b11 ("
+b1 %"
+0&"
+03"
+b11 )"
+b1000 6"
+b1 -"
+b1 ""
+b11 $"
+0)
+b1 (
+b1 5
+b11 /
+b11 9
+#45000
+b10101010 "
+b10101010 <
+b10101010 ;
+b10101010 5"
+b10101010 :"
+b10101010 ##
+b10101010 %#
+b10101010 $#
+1/"
+1&"
+1)
+#50000
+b1010101 (#
+b10000 "#
+0/"
+b10 %"
+0&"
+b10000 6"
+b10 -"
+b10 ""
+0)
+b10 (
+b10 5
+#55000
+b1010101 "
+b1010101 <
+b1010101 ;
+b1010101 5"
+b10101010 )#
+b1010101 :"
+b1010101 ##
+b10101010 +#
+b1010101 %#
+b1010101 $#
+b10101010 *#
+1/"
+1&"
+1)
+#60000
+bx "
+bx <
+b0 (#
+b0 "#
+b1 *"
+0/"
+b1 +"
+b1 ("
+0&"
+b1 )"
+b0 6"
+b0 -"
+b1 $"
+0)
+b1 /
+b1 9
+#65000
+b0 ;
+b0 5"
+b1010101 )#
+b0 :"
+b0 ##
+b0 %#
+b1010101 +#
+b1010101 *#
+b0 $#
+1/"
+1&"
+1)
+#70000
+0/"
+0&"
+0)
+#75000
+b0 )#
+b0 +#
+b0 *#
+1/"
+1&"
+1)
+#80000
+0/"
+0&"
+0)
+#85000
+1/"
+1&"
+1)
+#90000
+0/"
+0&"
+0)

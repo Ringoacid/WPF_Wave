@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36212.18
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WPF_Wave", "WPF_Wave\WPF_Wave.csproj", "{0418EABA-7EE4-4AD1-BC03-B7F00437C2FD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WPF_WaveTests", "WPF_WaveTests\WPF_WaveTests.csproj", "{B043F47A-DF53-436F-A84E-343DAC7FB89A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0418EABA-7EE4-4AD1-BC03-B7F00437C2FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0418EABA-7EE4-4AD1-BC03-B7F00437C2FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0418EABA-7EE4-4AD1-BC03-B7F00437C2FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0418EABA-7EE4-4AD1-BC03-B7F00437C2FD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B043F47A-DF53-436F-A84E-343DAC7FB89A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B043F47A-DF53-436F-A84E-343DAC7FB89A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B043F47A-DF53-436F-A84E-343DAC7FB89A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B043F47A-DF53-436F-A84E-343DAC7FB89A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6E988A71-D287-4E11-92D5-B810A7E78C1A}
+	EndGlobalSection
+EndGlobal
