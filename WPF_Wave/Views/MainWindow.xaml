@@ -76,6 +76,18 @@
                     </Grid>
                 </MenuItem.Icon>
             </MenuItem>
+
+            <MenuItem Command="{Binding ViewModel.ShowLicenseCommand}" Header="ライセンス表示">
+                <MenuItem.Icon>
+                    <Grid>
+                        <!--  書類のマーク  -->
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            FontFamily="Segoe MDL2 Assets"
+                            Text="&#xF000;" />
+                    </Grid>
+                </MenuItem.Icon>
+            </MenuItem>
         </Menu>
 
         <Grid Grid.Row="1">

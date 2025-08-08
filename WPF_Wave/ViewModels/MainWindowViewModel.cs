@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using WPF_Wave.Models;
+using WPF_Wave.Views;
 
 namespace WPF_Wave.ViewModels;
 
@@ -299,6 +300,17 @@ public partial class MainWindowViewModel : ObservableObject
     {
     }
 
+    #endregion
+
+    #region ライセンス関連
+    [RelayCommand]
+    void ShowLicense()
+    {
+        LicenseDisplayWindow licenseWindow = new LicenseDisplayWindow();
+        licenseWindow.Owner = Application.Current.MainWindow;
+        licenseWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        licenseWindow.ShowDialog();
+    }
     #endregion
 }
 
