@@ -1,16 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections;
 using System.Numerics;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace WPF_Wave.Models;
+
+public enum StringFormat
+{
+    Binary, // 2進数
+    Decimal, // 10進数
+    Hexadecimal, // 16進数
+}
 
 /// <summary>
 /// Icarus Verilogで作成されたワイヤ・レジスタ・パラメーターなどの値を保持するクラス
 /// </summary>
-public class VariableValue
+public class VariableValue : IEnumerable<VariableValue.BitType>
 {
     public static VariableValue SingleZero => new VariableValue([BitType.Zero]);
     public static VariableValue SingleOne => new VariableValue([BitType.One]);
@@ -51,7 +55,7 @@ public class VariableValue
         }
         _data = new BitType[bitWidth];
 
-        for(int i = 0; i < bitWidth; i++)
+        for (int i = 0; i < bitWidth; i++)
         {
             _data[i] = BitType.X; // 初期値は不定値
         }
@@ -71,7 +75,7 @@ public class VariableValue
 
         _data = new BitType[binaryString.Length];
 
-        for (int i=binaryString.Length - 1, j = 0; i >= 0; i--, j++)
+        for (int i = binaryString.Length - 1, j = 0; i >= 0; i--, j++)
         {
             switch (binaryString[i])
             {
@@ -95,12 +99,19 @@ public class VariableValue
         }
     }
 
+    public VariableValue(VariableValue other)
+    {
+        _data = new BitType[other.BitWidth];
+        Array.Copy(other._data, _data, other.BitWidth);
+    }
+
     public override string ToString()
     {
         StringBuilder sb = new();
 
-        foreach (var bit in _data)
+        for (int i = _data.Length - 1; i >= 0; i--)
         {
+            var bit = _data[i];
             switch (bit)
             {
                 case BitType.Zero:
@@ -123,6 +134,100 @@ public class VariableValue
         return sb.ToString();
     }
 
+    public string ToString(StringFormat format)
+    {
+        if (format == StringFormat.Binary)
+        {
+            return ToString();
+        }
+        else if (format == StringFormat.Decimal)
+        {
+            if (HasValue)
+            {
+                return ToBigInteger().ToString();
+            }
+            else
+            {
+                return "XXX";
+            }
+        }
+        else if (format == StringFormat.Hexadecimal)
+        {
+            // 16進数表現に変換
+            // 4bitごとに区切り、1bitでも不定値xの場合は"X"
+            // ハイインピーダンスZの場合は"Z"
+            // そうでなければ"0"～"F"までの文字列を生成
+
+            StringBuilder sb = new();
+
+            // ビット幅を4の倍数に調整（上位ビットを0でパディング）
+            int paddedBitWidth = ((BitWidth + 3) / 4) * 4;
+
+            // 4bitずつ処理（上位ビットから）
+            for (int i = paddedBitWidth - 4; i >= 0; i -= 4)
+            {
+                bool hasX = false;
+                bool hasZ = false;
+                int nibbleValue = 0;
+
+                // 4bitを処理
+                for (int j = 3; j >= 0; j--)
+                {
+                    int bitIndex = i + j;
+                    BitType bit;
+
+                    if (bitIndex >= BitWidth)
+                    {
+                        // パディング部分は0として扱う
+                        bit = BitType.Zero;
+                    }
+                    else
+                    {
+                        bit = _data[bitIndex];
+                    }
+
+                    switch (bit)
+                    {
+                        case BitType.Zero:
+                            // nibbleValueには何も加算しない（0として扱う）
+                            break;
+                        case BitType.One:
+                            nibbleValue += (1 << (3 - j));
+                            break;
+                        case BitType.X:
+                            hasX = true;
+                            break;
+                        case BitType.Z:
+                            hasZ = true;
+                            break;
+                    }
+                }
+
+                // 4bitの結果を文字に変換
+                if (hasX)
+                {
+                    sb.Append('X');
+                }
+                else if (hasZ)
+                {
+                    sb.Append('Z');
+                }
+                else
+                {
+                    // 0-15を16進数文字に変換
+                    sb.Append(nibbleValue.ToString("X"));
+                }
+            }
+
+            return sb.ToString();
+        }
+        else
+        {
+            throw new ArgumentOutOfRangeException(nameof(format), "Unsupported format type.");
+        }
+    }
+
+
     public BigInteger ToBigInteger()
     {
         if (!HasValue) throw new FormatException("This variable does not have valid value");
@@ -132,5 +237,15 @@ public class VariableValue
         var bigint = BigInteger.Parse(binaryString, System.Globalization.NumberStyles.BinaryNumber);
 
         return bigint;
+    }
+
+    public IEnumerator<BitType> GetEnumerator()
+    {
+        return _data.AsEnumerable().GetEnumerator();
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
     }
 }

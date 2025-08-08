@@ -33,9 +33,9 @@ public class Vcd
     public long TimeScale { get; set; } = 1;
 
     /// <summary>
-    /// 時間をキー、IDと値のペアを値とする辞書
+    /// IDをキー、時間と値のペアのリストを値とする辞書
     /// </summary>
-    public Dictionary<long, Dictionary<string, VariableValue>> Time_IDValue_Pairs { get; set; } = [];
+    public Dictionary<string, List<TimeValuePair>> ID_TimeValue_Pairs { get; set; } = [];
 
     /// <summary>
     /// IDをキー、Variableオブジェクトを値とする辞書
@@ -59,7 +59,8 @@ public class Vcd
         Version = null;
         TopModule = null;
         TimeScale = 1; // デフォルトは1ns
-        Time_IDValue_Pairs.Clear();
+        ID_TimeValue_Pairs.Clear();
+        ID_Variable_Pairs.Clear();
         SimulationTime = 0;
         IsLoaded = false;
     }
@@ -76,28 +77,33 @@ public class Vcd
         {
             if (line == "$date")
             {
+                // シミュレーションの日時
                 ReadDate(reader);
                 continue;
             }
             if (line == "$version")
             {
+                // バージョン
                 ReadVersion(reader);
                 continue;
             }
             if (line == "$timescale")
             {
+                // タイムスケール
                 ReadTimeScale(reader);
                 continue;
             }
 
             if (line.StartsWith("$scope"))
             {
+                // モジュールなどのスコープ
                 ReadScope(line, reader, true);
                 continue;
             }
 
             if (line.StartsWith("#"))
             {
+                // 時間待機
                 line = line.Substring(1).Trim();
                 if(!long.TryParse(line, out long time))
                 {
@@ -111,6 +117,7 @@ public class Vcd
 
             if (line.StartsWith("b"))
             {
+                // 多ビット信号
                 line = line.Substring(1).Trim();
                 var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 if(parts.Length < 2)
@@ -119,44 +126,53 @@ public class Vcd
                 }
 
                 var id = parts[1];
-                var value = StringToVariableValue(id ,parts[0]);
+                var valueString = parts[0];
 
-                SetTime_IDValue_Pair(currentTime, id, value);
+                if(valueString.Length == 1)
+                {
+                    // 省略されている場合はビット幅を直す
+                    var bitWidth = ID_Variable_Pairs[id].BitWidth;
+                    valueString = new string(valueString[0], bitWidth);
+                }
+
+                var value = StringToVariableValue(id, valueString);
+
+                SetID_TimeValue_Pair(id, currentTime, value);
                 continue;
             }
 
-            if (line.StartsWith("0") || line.StartsWith("1"))
+            if (line.StartsWith("0") || line.StartsWith("1") || line.StartsWith("x") || line.StartsWith("z"))
             {
-                VariableValue value;
-                if (line.StartsWith("0"))
+                // 単一ビット信号
+                VariableValue value = line[0] switch
                 {
-                    value = VariableValue.SingleZero;
-                }
-                else
-                {
-                    value = VariableValue.SingleOne;
-                }
+                    '0' => VariableValue.SingleZero,
+                    '1' => VariableValue.SingleOne,
+                    'x' => VariableValue.SingleX,
+                    'z' => VariableValue.SingleZ,
+                    _ => throw new FormatException($"Invalid value: {line[0]}")
+                };
 
                 var id = line.Substring(1).Trim();
 
-                SetTime_IDValue_Pair(currentTime, id, value);
+                SetID_TimeValue_Pair(id, currentTime, value);
                 continue;
             }
         }
 
         IsLoaded = true;
 
-        void SetTime_IDValue_Pair(long time, string id, VariableValue value)
+        void SetID_TimeValue_Pair(string id, long time, VariableValue value)
         {
-            if (Time_IDValue_Pairs.TryGetValue(time, out var dict))
+            if (ID_TimeValue_Pairs.TryGetValue(id, out var list))
             {
-                // 既存の時間に対応する辞書がある場合、値を更新
-                dict[id] = value;
+                // 既存のIDに対応するリストがある場合、新しい時間と値のペアを追加
+                list.Add(new TimeValuePair(time, value));
             }
             else
             {
-                // 新しい時間に対応する辞書を作成
-                Time_IDValue_Pairs[time] = new Dictionary<string, VariableValue> { { id, value } };
+                // 新しいIDに対応するリストを作成
+                ID_TimeValue_Pairs[id] = new List<TimeValuePair> { new TimeValuePair(time, value) };
             }
         }
     }
@@ -316,5 +332,68 @@ public class Vcd
         var bitWidth = ID_Variable_Pairs[id].BitWidth;
         var val = new VariableValue(valueString);
         return val;
+    }
+
+    /// <summary>
+    /// 指定されたIDの変数の特定の時間における値を取得
+    /// </summary>
+    /// <param name="id">変数のID</param>
+    /// <param name="time">時間</param>
+    /// <returns>指定された時間における値。該当する時間の値がない場合は、最も近い過去の値を返す</returns>
+    public VariableValue? GetValueAtTime(string id, long time)
+    {
+        if (!ID_TimeValue_Pairs.TryGetValue(id, out var timeValuePairs))
+        {
+            return null; // 指定されたIDが存在しない
+        }
+
+        // 時間順にソートされているとは限らないので、指定時間以下の最大時間を探す
+        var validPairs = timeValuePairs.Where(pair => pair.Time <= time).ToList();
+        if (!validPairs.Any())
+        {
+            return null; // 指定時間以前の値が存在しない
+        }
+
+        // 最も時間が近い値を返す
+        var closestPair = validPairs.OrderByDescending(pair => pair.Time).First();
+        return closestPair.Value;
+    }
+
+    /// <summary>
+    /// 指定されたIDの変数の全ての時間と値のペアを時間順で取得
+    /// </summary>
+    /// <param name="id">変数のID</param>
+    /// <returns>時間順にソートされた時間と値のペアのリスト。IDが存在しない場合は空のリスト</returns>
+    public List<TimeValuePair> GetTimeValuePairs(string id)
+    {
+        if (!ID_TimeValue_Pairs.TryGetValue(id, out var timeValuePairs))
+        {
+            return new List<TimeValuePair>(); // 指定されたIDが存在しない
+        }
+
+        return timeValuePairs.OrderBy(pair => pair.Time).ToList();
+    }
+
+    /// <summary>
+    /// 指定された時間に値が変化した全ての変数IDのリストを取得
+    /// </summary>
+    /// <param name="time">時間</param>
+    /// <returns>指定された時間に値が変化した変数IDのリスト</returns>
+    public List<string> GetChangedVariablesAtTime(long time)
+    {
+        var changedVariables = new List<string>();
+
+        foreach (var kvp in ID_TimeValue_Pairs)
+        {
+            var id = kvp.Key;
+            var timeValuePairs = kvp.Value;
+
+            if (timeValuePairs.Any(pair => pair.Time == time))
+            {
+                changedVariables.Add(id);
+            }
+        }
+
+        return changedVariables;
     }
 }

@@ -6,9 +6,10 @@
     xmlns:helper="clr-namespace:WPF_Wave.Helpers"
     xmlns:local="clr-namespace:WPF_Wave"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="clr-namespace:WPF_Wave.Models"
     xmlns:uc="clr-namespace:WPF_Wave.UserControls"
     xmlns:vm="clr-namespace:WPF_Wave.ViewModels"
-    Title="VCD波形ビューア"
+    Title="VCD Wave"
     Width="1000"
     Height="600"
     d:DataContext="{d:DesignInstance Type=local:MainWindow,
@@ -21,7 +22,7 @@
         <!--  TreeView用のHierarchicalDataTemplate（モジュール名のみ表示）  -->
         <HierarchicalDataTemplate
             x:Key="ModuleTreeTemplate"
-            DataType="{x:Type vm:ModuleTreeNode}"
+            DataType="{x:Type models:ModuleTreeNode}"
             ItemsSource="{Binding Children}">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="{Binding Name}" />
@@ -136,9 +137,13 @@
                                 Text="信号選択" />
 
                             <ListView
+                                x:Name="SignalsListView"
                                 Grid.Row="1"
                                 DisplayMemberPath="DisplayText"
-                                ItemsSource="{Binding ViewModel.SignalList}" />
+                                ItemsSource="{Binding ViewModel.SignalList}"
+                                SelectedItem="{Binding ViewModel.SelectedSignal}"
+                                SelectionChanged="ListView_SelectionChanged"
+                                SelectionMode="Extended" />
 
                             <WrapPanel
                                 Grid.Row="2"
@@ -149,8 +154,8 @@
                                     Padding="20,5,20,5"
                                     HorizontalAlignment="Center"
                                     Background="{DynamicResource AccentFillColorDefaultBrush}"
-                                    Command="{Binding ViewModel.AddTestSignalCommand}"
-                                    Content="追加"
+                                    Command="{Binding ViewModel.AddSelectedSignalToWaveformCommand}"
+                                    Content="波形に追加"
                                     FontSize="16"
                                     Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
                             </WrapPanel>
@@ -189,20 +194,14 @@
                 </Grid.ColumnDefinitions>
 
                 <uc:DragableList
-                    Margin="5"
                     x:Name="SignalDragableList"
                     Grid.Row="1"
                     Grid.Column="0"
+                    Margin="5"
                     VerticalAlignment="Top"
-                    DisplayMemberPath="DisplayText"
-                    ItemsSource="{Binding ViewModel.SampleSignals}" />
+                    DisplayMemberPath="Name"
+                    ItemsSource="{Binding ViewModel.SelectedSignalsForWaveform}" />
 
-                <TextBlock
-                    x:Name="DebugTextBlock"
-                    Grid.Row="1"
-                    Grid.Column="0"
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Bottom" />
 
                 <GridSplitter
                     Grid.RowSpan="2"
@@ -211,10 +210,13 @@
                     HorizontalAlignment="Right"
                     VerticalAlignment="Stretch" />
 
-                <TextBlock
+                <ScrollViewer
                     Grid.Row="1"
                     Grid.Column="1"
-                    HorizontalAlignment="Stretch" />
+                    Margin="0,5,0,0"
+                    VerticalAlignment="Top">
+                    <uc:WaveformsDrawer DrawSignalVariableDisplayItems="{Binding ViewModel.SelectedSignalsForWaveform}" VcdData="{Binding ViewModel.ActiveVcd}" />
+                </ScrollViewer>
             </Grid>
         </Grid>
     </Grid>

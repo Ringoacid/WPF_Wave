@@ -73,7 +73,8 @@ public class Variable
     [MemberNotNull(nameof(Type), nameof(BitWidth) ,nameof(Id), nameof(Name))]
     public void LoadFromString(string line)
     {
-        // 例: "$var reg 1 hoge piyo $end"
+        // 例1: "$var reg 1 ' singleX $end"
+        // 例2: "$var reg 2 ! doubleX [1:0] $end"
         var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
         if (parts.Length < 6)

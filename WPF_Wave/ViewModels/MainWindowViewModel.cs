@@ -15,140 +15,6 @@ using WPF_Wave.Models;
 
 namespace WPF_Wave.ViewModels;
 
-/// <summary>
-/// モジュールのツリー構造を表現するためのノードクラス
-/// VCDファイルから読み込んだモジュール階層をTreeViewで表示するために使用
-/// </summary>
-public class ModuleTreeNode
-{
-    /// <summary>
-    /// モジュール名
-    /// </summary>
-    public string Name { get; set; } = string.Empty;
-
-    /// <summary>
-    /// 子モジュールのコレクション
-    /// </summary>
-    public ObservableCollection<ModuleTreeNode> Children { get; set; } = new();
-
-    /// <summary>
-    /// 元のModuleオブジェクトへの参照
-    /// このノードが表現するModuleの詳細情報にアクセスするために使用
-    /// </summary>
-    public Module? ModuleData { get; set; }
-}
-
-/// <summary>
-/// 変数（信号）の表示用アイテムクラス
-/// VCDファイルの変数情報をUIに表示するためのプロパティ変更通知機能付きラッパー
-/// </summary>
-public class VariableDisplayItem : INotifyPropertyChanged
-{
-    #region プライベートフィールド
-
-    /// <summary>
-    /// 変数名のバッキングフィールド
-    /// </summary>
-    private string name = string.Empty;
-
-    /// <summary>
-    /// 変数タイプのバッキングフィールド
-    /// </summary>
-    private string type = string.Empty;
-
-    /// <summary>
-    /// ビット幅のバッキングフィールド
-    /// </summary>
-    private int bitWidth;
-
-    #endregion
-
-    #region パブリックプロパティ
-
-    /// <summary>
-    /// 変数名（例: "clk", "reset", "data_bus"）
-    /// </summary>
-    public string Name 
-    { 
-        get => name;
-        set
-        {
-            if (name != value)
-            {
-                name = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(DisplayText)); // 表示テキストも更新通知
-            }
-        }
-    }
-
-    /// <summary>
-    /// 変数の種類（"Wire", "Reg", "Integer", "Parameter"など）
-    /// </summary>
-    public string Type 
-    { 
-        get => type;
-        set
-        {
-            if (type != value)
-            {
-                type = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(DisplayText)); // 表示テキストも更新通知
-            }
-        }
-    }
-
-    /// <summary>
-    /// 変数のビット幅
-    /// </summary>
-    public int BitWidth 
-    { 
-        get => bitWidth;
-        set
-        {
-            if (bitWidth != value)
-            {
-                bitWidth = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(DisplayText)); // 表示テキストも更新通知
-            }
-        }
-    }
-
-    /// <summary>
-    /// 元のVariableオブジェクトへの参照
-    /// VCDファイルから読み込んだ詳細な変数情報にアクセスするために使用
-    /// </summary>
-    public Variable VariableData { get; set; } = null!;
-    
-    /// <summary>
-    /// 表示用フォーマット済みテキスト
-    /// "Type: Name (BitWidth bits)" の形式で表示
-    /// 例: "Wire: clk (1 bits)", "Reg: counter (8 bits)"
-    /// </summary>
-    public string DisplayText => $"{Type}: {Name} ({BitWidth} bits)";
-
-    #endregion
-
-    #region INotifyPropertyChanged実装
-
-    /// <summary>
-    /// プロパティ変更通知イベント
-    /// </summary>
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    /// <summary>
-    /// プロパティ変更通知を発生させる
-    /// </summary>
-    /// <param name="propertyName">変更されたプロパティ名（CallerMemberName属性により自動設定）</param>
-    protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
-    #endregion
-}
 
 #pragma warning disable WPF0001
 /// <summary>
@@ -228,6 +94,26 @@ public partial class MainWindowViewModel : ObservableObject
     ObservableCollection<VariableDisplayItem> signalList = new();
 
     /// <summary>
+    /// ListView で現在選択されている信号（単一選択用、後方互換性のため残す）
+    /// </summary>
+    [ObservableProperty]
+    VariableDisplayItem? selectedSignal;
+
+    /// <summary>
+    /// ListView で現在選択されている複数の信号
+    /// 「波形に追加」ボタンで波形表示リストに追加する対象の信号群
+    /// </summary>
+    [ObservableProperty]
+    List<VariableDisplayItem> selectedSignals = new();
+
+    /// <summary>
+    /// 波形表示用に選択された信号のコレクション
+    /// DragableListで表示され、ユーザーが波形を確認したい信号のリスト
+    /// </summary>
+    [ObservableProperty]
+    ObservableCollection<VariableDisplayItem> selectedSignalsForWaveform = new();
+
+    /// <summary>
     /// 選択モジュール変更時の処理
     /// 新しく選択されたモジュールの信号リストを更新する
     /// </summary>
@@ -241,6 +127,7 @@ public partial class MainWindowViewModel : ObservableObject
     /// 現在読み込まれているVCDファイルのデータ
     /// nullの場合はVCDファイルが読み込まれていない状態を示す
     /// </summary>
+    [ObservableProperty]
     Vcd? activeVcd;
 
     /// <summary>
@@ -259,6 +146,64 @@ public partial class MainWindowViewModel : ObservableObject
         if (openFileDialog.ShowDialog() == true)
         {
             ReadVcdFile(openFileDialog.FileName);
+        }
+    }
+
+    /// <summary>
+    /// 選択された信号を波形表示リストに追加するコマンド
+    /// ListViewで選択された複数の信号をDragableListに追加する
+    /// </summary>
+    [RelayCommand]
+    public void AddSelectedSignalToWaveform()
+    {
+        if (SelectedSignals != null && SelectedSignals.Any())
+        {
+            var addedCount = 0;
+            var duplicateCount = 0;
+            
+            foreach (var selectedSignal in SelectedSignals)
+            {
+                // 既に追加されているかチェック（重複防止）
+                var existingSignal = SelectedSignalsForWaveform.FirstOrDefault(s => 
+                    s.Name == selectedSignal.Name && 
+                    s.Type == selectedSignal.Type && 
+                    s.BitWidth == selectedSignal.BitWidth);
+
+                if (existingSignal == null)
+                {
+                    // 新しいインスタンスを作成して追加（元の信号への影響を防ぐ）
+                    var newSignal = new VariableDisplayItem
+                    {
+                        Name = selectedSignal.Name,
+                        Type = selectedSignal.Type,
+                        BitWidth = selectedSignal.BitWidth,
+                        VariableData = selectedSignal.VariableData
+                    };
+                    SelectedSignalsForWaveform.Add(newSignal);
+                    addedCount++;
+                }
+                else
+                {
+                    duplicateCount++;
+                }
+            }
+            
+            // 結果をユーザーに通知
+            if (addedCount > 0 && duplicateCount > 0)
+            {
+                MessageBox.Show($"{addedCount}個の信号を追加しました。\n{duplicateCount}個の信号は既に追加済みのためスキップしました。", 
+                    "一括追加完了", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else if (duplicateCount > 0)
+            {
+                MessageBox.Show($"選択された{duplicateCount}個の信号は全て既に波形表示リストに追加されています。", 
+                    "重複エラー", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        else
+        {
+            MessageBox.Show("追加する信号を選択してください。", 
+                "選択エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -321,15 +266,18 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             // 新しいVCDオブジェクトを作成してファイルを読み込み
-            activeVcd = new Vcd();
-            activeVcd.LoadFromFile(filePath);
+            ActiveVcd = new Vcd();
+            ActiveVcd.LoadFromFile(filePath);
 
             // トップモジュール以下のモジュール階層をTreeViewに表示
             ModuleTree.Clear();
-            if (activeVcd.TopModule != null)
+            if (ActiveVcd.TopModule != null)
             {
-                var topModuleNode = CreateModuleTreeNode(activeVcd.TopModule);
+                var topModuleNode = CreateModuleTreeNode(ActiveVcd.TopModule);
                 ModuleTree.Add(topModuleNode);
+
+                SignalList.Clear();
+                SelectedSignalsForWaveform.Clear();
             }
         }
         catch (Exception ex)
@@ -341,105 +289,14 @@ public partial class MainWindowViewModel : ObservableObject
 
     #endregion
 
-    #region テスト・デモ用データ
+    #region 初期化
 
     /// <summary>
-    /// テスト用の単純な文字列コレクション
-    /// DragableListの基本動作確認用
+    /// コンストラクタ
+    /// 初期化処理を行う
     /// </summary>
-    [ObservableProperty]
-    ObservableCollection<object> hoges = ["a", "b", "c", "d", "longlonglonglong_e"];
-
-    /// <summary>
-    /// テスト用のサンプル信号コレクション
-    /// DragableListのDisplayMemberPath機能とプロパティ変更通知のテスト用
-    /// </summary>
-    [ObservableProperty]
-    ObservableCollection<object> sampleSignals =
-    [
-        new VariableDisplayItem 
-        { 
-            Name = "clk", 
-            Type = "Wire", 
-            BitWidth = 1,
-            VariableData = new Variable(Variable.VariableType.Wire, 1, "clk_id", "clk")
-        },
-        new VariableDisplayItem 
-        { 
-            Name = "reset", 
-            Type = "Wire", 
-            BitWidth = 1,
-            VariableData = new Variable(Variable.VariableType.Wire, 1, "reset_id", "reset")
-        },
-        new VariableDisplayItem 
-        { 
-            Name = "data_bus", 
-            Type = "Wire", 
-            BitWidth = 32,
-            VariableData = new Variable(Variable.VariableType.Wire, 32, "data_bus_id", "data_bus")
-        },
-        new VariableDisplayItem 
-        { 
-            Name = "counter", 
-            Type = "Reg", 
-            BitWidth = 8,
-            VariableData = new Variable(Variable.VariableType.Reg, 8, "counter_id", "counter")
-        }
-    ];
-
-    #endregion
-
-    #region テスト用コマンド
-
-    /// <summary>
-    /// 最初の信号のプロパティを変更するテストコマンド
-    /// プロパティ変更通知の動作確認用
-    /// BitWidthとTypeを交互に変更してDragableListの自動更新をテスト
-    /// </summary>
-    [RelayCommand]
-    public void ModifyFirstSignal()
+    public MainWindowViewModel()
     {
-        if (SampleSignals.Count > 0)
-        {
-            var sample = SampleSignals[0];
-            if (sample is not VariableDisplayItem signal) return;
-            
-            // BitWidthとTypeを変更してプロパティ変更通知をテスト
-            signal.BitWidth = signal.BitWidth == 1 ? 8 : 1;
-            signal.Type = signal.Type == "Wire" ? "Reg" : "Wire";
-        }
-    }
-
-    /// <summary>
-    /// ランダムなテスト信号を追加するコマンド
-    /// コレクション変更の動作確認用
-    /// ランダムな名前、タイプ、ビット幅でダミー信号を生成・追加
-    /// </summary>
-    [RelayCommand]
-    public void AddTestSignal()
-    {
-        var random = new Random();
-        var signalNumber = SampleSignals.Count + 1;
-        SampleSignals.Add(new VariableDisplayItem
-        {
-            Name = $"test_signal_{signalNumber}",
-            Type = random.Next(2) == 0 ? "Wire" : "Reg",
-            BitWidth = random.Next(1, 33), // 1-32ビットのランダムな幅
-            VariableData = new Variable(Variable.VariableType.Wire, 1, $"test_{signalNumber}_id", $"test_signal_{signalNumber}")
-        });
-    }
-
-    /// <summary>
-    /// 最後の信号を削除するコマンド
-    /// コレクションからのアイテム削除の動作確認用
-    /// </summary>
-    [RelayCommand]
-    public void RemoveLastSignal()
-    {
-        if (SampleSignals.Count > 0)
-        {
-            SampleSignals.RemoveAt(SampleSignals.Count - 1);
-        }
     }
 
     #endregion

@@ -16,6 +16,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using System.ComponentModel;
 using System.Windows.Threading;
+using System.Linq;
 
 namespace WPF_Wave;
 
@@ -50,14 +51,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         ViewModel = new MainWindowViewModel();
         DataContext = this;
-
-        DispatcherTimer dt = new();
-        dt.Interval = TimeSpan.FromMilliseconds(16);
-        dt.Tick += (s, e) =>
-        {
-            DebugTextBlock.Text = $"Width:{SignalDragableList.ActualWidth}";
-        };
-        dt.Start();
     }
 
     private Storyboard CreateSlideInStoryboard()
@@ -127,6 +120,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (e.NewValue is ModuleTreeNode selectedNode)
         {
             ViewModel.SelectedModule = selectedNode;
+        }
+    }
+
+    /// <summary>
+    /// ListView の選択項目が変更された時の処理
+    /// 複数選択された信号をViewModelに通知する
+    /// </summary>
+    private void ListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ListView listView)
+        {
+            // 選択された信号をViewModelに設定
+            ViewModel.SelectedSignals = listView.SelectedItems.Cast<VariableDisplayItem>().ToList();
         }
     }
 }

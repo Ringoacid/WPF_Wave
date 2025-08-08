@@ -8,6 +8,7 @@ using System.Windows.Media.Effects;
 using System.Reflection;
 using System.ComponentModel;
 using System.Collections.Specialized;
+using System.Collections;
 
 namespace WPF_Wave.UserControls;
 
@@ -21,17 +22,18 @@ public partial class DragableList : UserControl
     
     /// <summary>
     /// リストに表示するアイテムのコレクション
+    /// 汎用的なIEnumerableとして定義し、様々な型のコレクションに対応
     /// </summary>
     public static readonly DependencyProperty ItemsSourceProperty =
-        DependencyProperty.Register(nameof(ItemsSource), typeof(ObservableCollection<object>), typeof(DragableList),
-            new PropertyMetadata(new ObservableCollection<object>(), OnItemsSourceChanged));
+        DependencyProperty.Register(nameof(ItemsSource), typeof(IEnumerable), typeof(DragableList),
+            new PropertyMetadata(null, OnItemsSourceChanged));
 
     /// <summary>
     /// リストに表示するアイテムのコレクション
     /// </summary>
-    public ObservableCollection<object> ItemsSource
+    public IEnumerable ItemsSource
     {
-        get => (ObservableCollection<object>)GetValue(ItemsSourceProperty);
+        get => (IEnumerable)GetValue(ItemsSourceProperty);
         set => SetValue(ItemsSourceProperty, value);
     }
 
@@ -43,9 +45,9 @@ public partial class DragableList : UserControl
         if (d is DragableList dragableList)
         {
             // 古いコレクションのイベント購読を解除
-            dragableList.UnsubscribeFromItemsSourceEvents(e.OldValue as ObservableCollection<object>);
+            dragableList.UnsubscribeFromItemsSourceEvents(e.OldValue);
             // 新しいコレクションのイベントを購読
-            dragableList.SubscribeToItemsSourceEvents(e.NewValue as ObservableCollection<object>);
+            dragableList.SubscribeToItemsSourceEvents(e.NewValue);
             // UIを更新
             dragableList.RefreshItems();
         }
@@ -353,15 +355,18 @@ public partial class DragableList : UserControl
     /// ItemsSourceのイベントを購読
     /// </summary>
     /// <param name="collection">購読対象のコレクション</param>
-    private void SubscribeToItemsSourceEvents(ObservableCollection<object>? collection)
+    private void SubscribeToItemsSourceEvents(object? collection)
     {
-        if (collection != null)
+        if (collection is INotifyCollectionChanged notifyCollection)
         {
             // コレクション変更イベントを購読
-            collection.CollectionChanged += ItemsSource_CollectionChanged;
-            
+            notifyCollection.CollectionChanged += ItemsSource_CollectionChanged;
+        }
+        
+        if (collection is IEnumerable enumerable)
+        {
             // INotifyPropertyChangedを実装するアイテムのPropertyChangedイベントを購読
-            foreach (var item in collection)
+            foreach (var item in enumerable)
             {
                 SubscribeToItemPropertyChanged(item);
             }
@@ -372,12 +377,12 @@ public partial class DragableList : UserControl
     /// ItemsSourceのイベント購読を解除
     /// </summary>
     /// <param name="collection">購読解除対象のコレクション</param>
-    private void UnsubscribeFromItemsSourceEvents(ObservableCollection<object>? collection)
+    private void UnsubscribeFromItemsSourceEvents(object? collection)
     {
-        if (collection != null)
+        if (collection is INotifyCollectionChanged notifyCollection)
         {
             // コレクション変更イベントの購読を解除
-            collection.CollectionChanged -= ItemsSource_CollectionChanged;
+            notifyCollection.CollectionChanged -= ItemsSource_CollectionChanged;
         }
         
         // 全てのアイテムのPropertyChangedイベントの購読を解除
@@ -510,7 +515,8 @@ public partial class DragableList : UserControl
         if (changedItem == null || ItemsSource == null)
             return;
 
-        var index = ItemsSource.ToList().IndexOf(changedItem);
+        var itemsList = ItemsSource.Cast<object>().ToList();
+        var index = itemsList.IndexOf(changedItem);
         if (index >= 0 && index < dragableBorders.Count)
         {
             var border = dragableBorders[index];
@@ -577,11 +583,15 @@ public partial class DragableList : UserControl
     /// <returns>最適な幅</returns>
     private double CalculateOptimalWidth()
     {
-        if (ItemsSource == null || !ItemsSource.Any())
+        if (ItemsSource == null)
+            return BorderWidth;
+            
+        var itemsList = ItemsSource.Cast<object>().ToList();
+        if (!itemsList.Any())
             return BorderWidth;
 
         double maxTextWidth = 0;
-        foreach (var item in ItemsSource)
+        foreach (var item in itemsList)
         {
             var textWidth = MeasureTextWidth(GetDisplayText(item));
             if (textWidth > maxTextWidth)
@@ -609,9 +619,9 @@ public partial class DragableList : UserControl
     /// <param name="item">追加するアイテム</param>
     public void AddItem(object item)
     {
-        if (ItemsSource != null)
+        if (ItemsSource is IList list)
         {
-            ItemsSource.Add(item);
+            list.Add(item);
             OnOrderChanged();
         }
     }
@@ -622,9 +632,9 @@ public partial class DragableList : UserControl
     /// <param name="index">削除するアイテムのインデックス</param>
     public void RemoveAt(int index)
     {
-        if (ItemsSource != null && index >= 0 && index < ItemsSource.Count)
+        if (ItemsSource is IList list && index >= 0 && index < list.Count)
         {
-            ItemsSource.RemoveAt(index);
+            list.RemoveAt(index);
             OnOrderChanged();
         }
     }
@@ -635,9 +645,9 @@ public partial class DragableList : UserControl
     /// <param name="item">削除するアイテム</param>
     public void Remove(object item)
     {
-        if (ItemsSource != null)
+        if (ItemsSource is IList list)
         {
-            ItemsSource.Remove(item);
+            list.Remove(item);
             OnOrderChanged();
         }
     }
@@ -647,9 +657,9 @@ public partial class DragableList : UserControl
     /// </summary>
     public void Clear()
     {
-        if (ItemsSource != null)
+        if (ItemsSource is IList list)
         {
-            ItemsSource.Clear();
+            list.Clear();
         }
     }
 
@@ -666,7 +676,17 @@ public partial class DragableList : UserControl
         MainCanvas.Children.Clear();
         dragableBorders.Clear();
 
-        if (ItemsSource is null)
+        if (ItemsSource == null)
+        {
+            SortedItemsSource = Enumerable.Empty<object>();
+            // UserControlの幅を最小値に設定
+            this.Width = MinWidth;
+            return;
+        }
+
+        var itemsList = ItemsSource.Cast<object>().ToList();
+        
+        if (!itemsList.Any())
         {
             SortedItemsSource = Enumerable.Empty<object>();
             // UserControlの幅を最小値に設定
@@ -684,7 +704,7 @@ public partial class DragableList : UserControl
         var totalHeight = 0.0;
         
         // 各アイテムに対してBorderコントロールを作成
-        foreach (var item in ItemsSource)
+        foreach (var item in itemsList)
         {
             Border border = new()
             {
@@ -735,7 +755,7 @@ public partial class DragableList : UserControl
         this.Height = Math.Max(totalHeight, BorderHeight);
         
         // ソート済みアイテムソースを更新
-        SortedItemsSource = ItemsSource.ToList();
+        SortedItemsSource = itemsList;
     }
 
     #endregion
@@ -894,18 +914,20 @@ public partial class DragableList : UserControl
 
             bool orderChanged = oldIndex != newIndex;
 
-            if (orderChanged)
+            if (orderChanged && ItemsSource is IList list)
             {
                 // dragableBordersリストの順序を更新
                 dragableBorders.RemoveAt(oldIndex);
                 dragableBorders.Insert(newIndex, border);
                 
                 // ItemsSourceの順序を更新
-                var reorderedItems = dragableBorders.Select(b => ItemsSource.ElementAt((int)b.Tag)).ToList();
-                ItemsSource.Clear();
+                var itemsList = ItemsSource.Cast<object>().ToList();
+                var reorderedItems = dragableBorders.Select(b => itemsList[(int)b.Tag]).ToList();
+                
+                list.Clear();
                 foreach (var item in reorderedItems)
                 {
-                    ItemsSource.Add(item);
+                    list.Add(item);
                 }
             }
 
@@ -919,7 +941,7 @@ public partial class DragableList : UserControl
             // 順序変更イベントを発生
             if (orderChanged)
             {
-                SortedItemsSource = ItemsSource.ToList();
+                SortedItemsSource = ItemsSource.Cast<object>().ToList();
                 OnOrderChanged();
             }
 
@@ -944,7 +966,7 @@ public partial class DragableList : UserControl
         removeItem.Click += (s, args) => 
         {
             var index = (int)border.Tag;
-            if (index >= 0 && index < ItemsSource.Count)
+            if (ItemsSource is IList list && index >= 0 && index < list.Count)
             {
                 RemoveAt(index);
             }
