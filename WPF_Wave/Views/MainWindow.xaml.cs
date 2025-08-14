@@ -44,13 +44,29 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     
+    private void SetDebugText()
+    {
+        List<string> texts = [];
+        texts.Add($"Waveform.Magnification{Waveform.Magnification}");
+        texts.Add($"Waveform.MinMagnification{Waveform.MinMagnification}");
+        texts.Add($"Waveform.MaxMagnification{Waveform.MaxMagnification}");
+
+        DebugTextBlock.Text = string.Join("\n", texts);
+    }
 
     public MainWindow()
     {
-        InitializeComponent();
-
         ViewModel = new MainWindowViewModel();
         DataContext = this;
+
+        InitializeComponent();
+
+        DispatcherTimer dt = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(16)
+        };
+        dt.Tick += (s, e) => SetDebugText();
+        dt.Start();
     }
 
     private Storyboard CreateSlideInStoryboard()

@@ -1,16 +1,8 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.Win32;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
 using WPF_Wave.Models;
 using WPF_Wave.Views;
 
@@ -55,7 +47,7 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     public void ChangeTheme()
     {
-        if(App.Current.ThemeMode == ThemeMode.Light)
+        if (App.Current.ThemeMode == ThemeMode.Light)
         {
             // ライトモードからダークモードに切り替え
             App.Current.ThemeMode = ThemeMode.Dark;
@@ -114,6 +106,9 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     ObservableCollection<VariableDisplayItem> selectedSignalsForWaveform = new();
 
+    [ObservableProperty]
+    public VariableDisplayItem? firstSelectedSignalsForWaveForm;
+
     /// <summary>
     /// 選択モジュール変更時の処理
     /// 新しく選択されたモジュールの信号リストを更新する
@@ -157,55 +152,56 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     public void AddSelectedSignalToWaveform()
     {
-        if (SelectedSignals != null && SelectedSignals.Any())
+        if (SelectedSignals == null || SelectedSignals.Count == 0)
         {
-            var addedCount = 0;
-            var duplicateCount = 0;
-            
-            foreach (var selectedSignal in SelectedSignals)
-            {
-                // 既に追加されているかチェック（重複防止）
-                var existingSignal = SelectedSignalsForWaveform.FirstOrDefault(s => 
-                    s.Name == selectedSignal.Name && 
-                    s.Type == selectedSignal.Type && 
-                    s.BitWidth == selectedSignal.BitWidth);
-
-                if (existingSignal == null)
-                {
-                    // 新しいインスタンスを作成して追加（元の信号への影響を防ぐ）
-                    var newSignal = new VariableDisplayItem
-                    {
-                        Name = selectedSignal.Name,
-                        Type = selectedSignal.Type,
-                        BitWidth = selectedSignal.BitWidth,
-                        VariableData = selectedSignal.VariableData
-                    };
-                    SelectedSignalsForWaveform.Add(newSignal);
-                    addedCount++;
-                }
-                else
-                {
-                    duplicateCount++;
-                }
-            }
-            
-            // 結果をユーザーに通知
-            if (addedCount > 0 && duplicateCount > 0)
-            {
-                MessageBox.Show($"{addedCount}個の信号を追加しました。\n{duplicateCount}個の信号は既に追加済みのためスキップしました。", 
-                    "一括追加完了", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            else if (duplicateCount > 0)
-            {
-                MessageBox.Show($"選択された{duplicateCount}個の信号は全て既に波形表示リストに追加されています。", 
-                    "重複エラー", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-        else
-        {
-            MessageBox.Show("追加する信号を選択してください。", 
+            MessageBox.Show("追加する信号を選択してください。",
                 "選択エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
         }
+
+        var addedCount = 0;
+        var duplicateCount = 0;
+
+        foreach (var selectedSignal in SelectedSignals)
+        {
+            // 既に追加されているかチェック（重複防止）
+            var existingSignal = SelectedSignalsForWaveform.FirstOrDefault(s =>
+                s.Name == selectedSignal.Name &&
+                s.Type == selectedSignal.Type &&
+                s.BitWidth == selectedSignal.BitWidth);
+
+            if (existingSignal == null)
+            {
+                // 新しいインスタンスを作成して追加（元の信号への影響を防ぐ）
+                var newSignal = new VariableDisplayItem
+                {
+                    Name = selectedSignal.Name,
+                    Type = selectedSignal.Type,
+                    BitWidth = selectedSignal.BitWidth,
+                    VariableData = selectedSignal.VariableData
+                };
+                SelectedSignalsForWaveform.Add(newSignal);
+                addedCount++;
+            }
+            else
+            {
+                duplicateCount++;
+            }
+        }
+
+        // 結果をユーザーに通知
+        if (addedCount > 0 && duplicateCount > 0)
+        {
+            MessageBox.Show($"{addedCount}個の信号を追加しました。\n{duplicateCount}個の信号は既に追加済みのためスキップしました。",
+                "一括追加完了", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else if (duplicateCount > 0)
+        {
+            MessageBox.Show($"選択された{duplicateCount}個の信号は全て既に波形表示リストに追加されています。",
+                "重複エラー", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        FirstSelectedSignalsForWaveForm = SelectedSignalsForWaveform.FirstOrDefault();
     }
 
     /// <summary>
@@ -240,7 +236,7 @@ public partial class MainWindowViewModel : ObservableObject
     private void UpdateSignalList()
     {
         SignalList.Clear();
-        
+
         if (SelectedModule?.ModuleData != null)
         {
             // 選択されたモジュールの全変数をVariableDisplayItemに変換して追加

@@ -63,7 +63,10 @@ public class VariableDisplayItem : INotifyPropertyChanged
             {
                 type = value;
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(DisplayText)); // 表示テキストも更新通知
+
+                // 表示テキストも更新通知
+                OnPropertyChanged(nameof(DisplayText));
+                OnPropertyChanged(nameof(DescriptionText));
             }
         }
     }
@@ -80,7 +83,10 @@ public class VariableDisplayItem : INotifyPropertyChanged
             {
                 bitWidth = value;
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(DisplayText)); // 表示テキストも更新通知
+
+                // 表示テキストも更新通知
+                OnPropertyChanged(nameof(DisplayText));
+                OnPropertyChanged(nameof(DescriptionText));
             }
         }
     }
@@ -97,6 +103,8 @@ public class VariableDisplayItem : INotifyPropertyChanged
     /// 例: "Wire: clk (1 bits)", "Reg: counter (8 bits)"
     /// </summary>
     public string DisplayText => $"{Type}: {Name} ({BitWidth} bits)";
+
+    public string DescriptionText => $"{Type}: ({BitWidth} bits)";
 
     #endregion
 
