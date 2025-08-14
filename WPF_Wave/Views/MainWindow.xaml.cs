@@ -50,6 +50,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         texts.Add($"Waveform.Magnification{Waveform.Magnification}");
         texts.Add($"Waveform.MinMagnification{Waveform.MinMagnification}");
         texts.Add($"Waveform.MaxMagnification{Waveform.MaxMagnification}");
+        texts.Add($"Waveform.WaveDrawGrid.ActualWidth{Waveform.WaveDrawGrid.ActualWidth}");
+        texts.Add($"Waveform.WaveFromImageSource.PixelWidth{Waveform.WaveFromImageSource.PixelWidth}");
 
         DebugTextBlock.Text = string.Join("\n", texts);
     }

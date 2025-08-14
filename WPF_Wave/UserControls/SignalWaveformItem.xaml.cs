@@ -95,7 +95,7 @@ public partial class SignalWaveformItem : UserControl
             nameof(MaxMagnification),
             typeof(double),
             typeof(SignalWaveformItem),
-            new FrameworkPropertyMetadata(1000.0, OnMinMaxMagnificationChanged));
+            new FrameworkPropertyMetadata(5000.0, OnMinMaxMagnificationChanged));
 
     public double MaxMagnification
     {
@@ -115,22 +115,12 @@ public partial class SignalWaveformItem : UserControl
 
     public static readonly DependencyProperty MagnificationProperty =
         DependencyProperty.Register(nameof(Magnification), typeof(double), typeof(SignalWaveformItem),
-            new FrameworkPropertyMetadata(1.0, FrameworkPropertyMetadataOptions.AffectsRender, MagnificationChangedCallback, CoerceMagnification));
+            new FrameworkPropertyMetadata(1.0, FrameworkPropertyMetadataOptions.AffectsRender, MagnificationChangedCallback));
 
     public double Magnification
     {
         get => (double)GetValue(MagnificationProperty);
         set => SetValue(MagnificationProperty, value);
-    }
-
-    private static object CoerceMagnification(DependencyObject d, object baseValue)
-    {
-        if (d is not SignalWaveformItem c) return baseValue;
-        if (baseValue is not double v) return baseValue;
-        var min = c.MinMagnification;
-        var max = c.MaxMagnification;
-        // 範囲に収める
-        return v.AdaptRestrictions(min, max);
     }
 
     private static void MagnificationChangedCallback(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -139,8 +129,16 @@ public partial class SignalWaveformItem : UserControl
         if (e.OldValue is not double oldVal) return;
         if (e.NewValue is not double newVal) return;
 
-        // 拡大率をログに出力
-        Log.Debug("Magnification changed from {OldValue} to {NewValue}", oldVal, newVal);
+        if (double.IsNaN(newVal) || double.IsInfinity(newVal))
+        {
+            Log.Error("Invalid magnification value: {Value}", newVal);
+            return;
+        }
+        if (newVal < SignalWaveformItem.MinMagnification || newVal > SignalWaveformItem.MaxMagnification)
+        {
+            SignalWaveformItem.Magnification = newVal.AdaptRestrictions(SignalWaveformItem.MinMagnification, SignalWaveformItem.MaxMagnification);
+            return;
+        }
 
         if (newVal <= 0)
         {
@@ -149,11 +147,10 @@ public partial class SignalWaveformItem : UserControl
             if (SignalWaveformItem.MinMagnification > 0) return;
         }
 
-        double newWidth = SignalWaveformItem.WaveWidth * (newVal / oldVal);
+        double newWidth = 100d * newVal;
         SignalWaveformItem.WaveDrawGrid.Width = newWidth;
 
-        // レイアウトが反映されてから再描画して、実幅とビットマップ幅の不一致を避ける
-        SignalWaveformItem.Dispatcher.BeginInvoke(() => NeedRenderCallback(d, e), System.Windows.Threading.DispatcherPriority.Loaded);
+        NeedRenderCallback(d, e);
     }
 
 
@@ -208,58 +205,114 @@ public partial class SignalWaveformItem : UserControl
         signalWaveformItem.RenderWaveforms();
     }
 
+    public DpiScale? DpiScale;
+
+    private struct ViewportInfo
+    {
+        public double ContentWidth;
+        public double ViewportWidth;
+        public double Offset;
+    }
+
+    // 追加: 自身をホストしている ScrollViewer をビジュアルツリーから取得
+    private ScrollViewer? FindScrollViewer()
+    {
+        DependencyObject? p = WaveDrawGrid;
+        while (p != null && p is not ScrollViewer)
+        {
+            var parent = VisualTreeHelper.GetParent(p);
+            if (parent is null && p is FrameworkElement fe)
+            {
+                parent = fe.Parent as DependencyObject;
+            }
+            p = parent;
+        }
+        return p as ScrollViewer;
+    }
+
+    private ViewportInfo GetViewport()
+    {
+        double contentWidth = WaveWidth;
+        var sv = FindScrollViewer();
+        double viewportWidth = sv?.ViewportWidth ?? double.NaN;
+        if (double.IsNaN(viewportWidth) || viewportWidth <= 0)
+        {
+            viewportWidth = sv?.ActualWidth ?? contentWidth;
+        }
+        double offset = sv?.HorizontalOffset ?? 0.0;
+        if (offset < 0) offset = 0;
+        if (contentWidth > 0 && offset > contentWidth) offset = contentWidth;
+        return new ViewportInfo { ContentWidth = contentWidth, ViewportWidth = viewportWidth, Offset = offset };
+    }
 
     private WriteableBitmap CreateWriteableBitmap(double width, double height)
     {
-        var dpi = VisualTreeHelper.GetDpi(this);
-        return new WriteableBitmap((int)Math.Round(width), (int)Math.Round(height), dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Bgr32, null);
+        if (DpiScale is null)
+        {
+            Log.Error("DpiScale is null. I make a WriteableBitmap with default DPI(96x96).");
+            return new WriteableBitmap((int)Math.Round(width), (int)Math.Round(height), 96, 96, PixelFormats.Bgr32, null);
+        }
+        return new WriteableBitmap((int)Math.Round(width), (int)Math.Round(height), DpiScale.Value.PixelsPerInchX, DpiScale.Value.PixelsPerInchY, PixelFormats.Bgr32, null);
     }
 
     private void CreateAndSetWriteableBitmap()
     {
-        double imageWidth = WaveDrawGrid.Width;
-        if (double.IsNaN(imageWidth) || imageWidth <= 0)
-        {
-            imageWidth = WaveWidth;
-        }
+        var vp = GetViewport();
+        double imageWidth = vp.ViewportWidth > 0 ? vp.ViewportWidth : WaveWidth;
+        if (imageWidth <= 0) imageWidth = 1; // guard
         // WaveMarginを考慮した正しい高さ計算
         double imageHeight = SingleWaveHeight + WaveMargin;
         WaveFromImageSource = CreateWriteableBitmap(imageWidth, imageHeight);
         WaveFromImage.Source = WaveFromImageSource;
+
+        // 表示位置をスクロールオフセットに合わせる
+        var left = vp.Offset;
+        WaveFromImage.Margin = new Thickness(left, 0, 0, 0);
+        SignalValueDrawer.Margin = new Thickness(left, 0, 0, 0);
     }
 
+    private static bool TryIntersect(double a0, double a1, double b0, double b1, out double i0, out double i1)
+    {
+        // [a0,a1] ∩ [b0,b1]
+        i0 = Math.Max(a0, b0);
+        i1 = Math.Min(a1, b1);
+        return i1 > i0; // positive length
+    }
 
-
-    private void RenderOneBitWaveFragment(double waveHeight, double waveWidth, double topMargin, long startTime, long endTime, VariableValue beginVal, VariableValue endVal)
+    private void RenderOneBitWaveFragment(double waveHeight, double contentWidth, double viewportLeft, double viewportWidth, double topMargin,
+        long startTime, long endTime, VariableValue beginVal, VariableValue endVal)
     {
         if (VcdData is null) return;
+        if (contentWidth <= 0 || viewportWidth <= 0) return;
 
         bool isBeginHigh = beginVal[0] == VariableValue.BitType.One;
         bool isEndHigh = endVal[0] == VariableValue.BitType.One;
 
-        long totalTime = VcdData.SimulationTime;
-        double startX = startTime * waveWidth / totalTime;
-        double endX = endTime * waveWidth / totalTime;
-        var startPoint = new IntVector2d(startX, topMargin + (isBeginHigh ? 0 : waveHeight));
-        var middlePoint = new IntVector2d(endX, topMargin + (isBeginHigh ? 0 : waveHeight));
-        var endPoint = new IntVector2d(endX, topMargin + (isEndHigh ? 0 : waveHeight));
+        long totalTime = Math.Max(1, VcdData.SimulationTime);
+        double startXGlobal = startTime * contentWidth / totalTime;
+        double endXGlobal = endTime * contentWidth / totalTime;
+        if (!TryIntersect(startXGlobal, endXGlobal, viewportLeft, viewportLeft + viewportWidth, out var visStart, out var visEnd))
+        {
+            return; // not visible
+        }
 
-        Color lineColor;
-        if (beginVal.IsUndefined)
-        {
-            lineColor = Colors.Red;
-        }
-        else if (beginVal.IsHighImpedance)
-        {
-            lineColor = Colors.Brown;
-        }
-        else
-        {
-            lineColor = Colors.Blue;
-        }
+        double yBegin = topMargin + (isBeginHigh ? 0 : waveHeight);
+        double yEnd = topMargin + (isEndHigh ? 0 : waveHeight);
+
+        // ローカル座標(ビューポート左を原点)に変換
+        var startPoint = new IntVector2d(visStart - viewportLeft, yBegin);
+        var middlePoint = new IntVector2d(visEnd - viewportLeft, yBegin);
+
+        Color lineColor = beginVal.IsUndefined ? Colors.Red : beginVal.IsHighImpedance ? Colors.Brown : Colors.Blue;
 
         WaveFromImageSource.DrawLine(startPoint, middlePoint, lineColor);
-        WaveFromImageSource.DrawLine(middlePoint, endPoint, lineColor);
+
+        // 遷移点がビューポート内にある場合のみ縦線を描画
+        if (endXGlobal >= viewportLeft && endXGlobal <= viewportLeft + viewportWidth)
+        {
+            var endPoint = new IntVector2d(middlePoint.X, yEnd);
+            WaveFromImageSource.DrawLine(middlePoint, endPoint, lineColor);
+        }
     }
 
     /// <summary>
@@ -267,60 +320,57 @@ public partial class SignalWaveformItem : UserControl
     /// </summary>
     private const double MinValueDisplayWidth = 50.0;
 
-    private void RenderMultiBitWaveFragment(double waveHeight, double waveWidth, double topMargin, long startTime, long endTime, VariableValue value, VariableDisplayItem item, double waveTopMargin)
+    private void RenderMultiBitWaveFragment(double waveHeight, double contentWidth, double viewportLeft, double viewportWidth, double topMargin,
+        long startTime, long endTime, VariableValue value, VariableDisplayItem item, double waveTopMargin)
     {
         if (VcdData is null) return;
+        if (contentWidth <= 0 || viewportWidth <= 0) return;
 
-        Color lineColor;
-        if (value.IsUndefined)
+        Color lineColor = value.IsUndefined ? Colors.Red : value.IsHighImpedance ? Colors.Brown : Colors.Blue;
+
+        long totalTime = Math.Max(1, VcdData.SimulationTime);
+        double startXGlobal = startTime * contentWidth / totalTime;
+        double endXGlobal = endTime * contentWidth / totalTime;
+        if (!TryIntersect(startXGlobal, endXGlobal, viewportLeft, viewportLeft + viewportWidth, out var visStart, out var visEnd))
         {
-            lineColor = Colors.Red;
-        }
-        else if (value.IsHighImpedance)
-        {
-            lineColor = Colors.Brown;
-        }
-        else
-        {
-            lineColor = Colors.Blue;
+            return; // not visible
         }
 
-        long totalTime = VcdData.SimulationTime;
-        double startX = startTime * waveWidth / totalTime;
-        double endX = endTime * waveWidth / totalTime;
-        double durationX = endX - startX;
-        var startPoint = new IntVector2d(startX, topMargin + (waveHeight / 2));
-        var endPoint = new IntVector2d(endX, topMargin + (waveHeight / 2));
+        double durationX = visEnd - visStart;
+        var startPoint = new IntVector2d(visStart - viewportLeft, topMargin + (waveHeight / 2));
+        var endPoint = new IntVector2d(visEnd - viewportLeft, topMargin + (waveHeight / 2));
 
         if (durationX < CrossWidth * 2)
         {
             // クロス幅の2倍より短い場合は、クロスは中間に描画
-            var middleTopPoint = new IntVector2d(startX + durationX / 2, topMargin);
-            var middleBottomPoint = new IntVector2d(startX + durationX / 2, topMargin + waveHeight);
+            double middleLocalX = startPoint.X + durationX / 2;
+            var middleTopPoint = new IntVector2d(middleLocalX, topMargin);
+            var middleBottomPoint = new IntVector2d(middleLocalX, topMargin + waveHeight);
 
             WaveFromImageSource.DrawLine(startPoint, middleTopPoint, lineColor);
             WaveFromImageSource.DrawLine(startPoint, middleBottomPoint, lineColor);
             WaveFromImageSource.DrawLine(middleTopPoint, endPoint, lineColor);
             WaveFromImageSource.DrawLine(middleBottomPoint, endPoint, lineColor);
-            return;
+        }
+        else
+        {
+            var middleTopLeftPoint = new IntVector2d(startPoint.X + CrossWidth, topMargin);
+            var middleTopRightPoint = new IntVector2d(endPoint.X - CrossWidth, topMargin);
+            var middleBottomLeftPoint = new IntVector2d(startPoint.X + CrossWidth, topMargin + waveHeight);
+            var middleBottomRightPoint = new IntVector2d(endPoint.X - CrossWidth, topMargin + waveHeight);
+
+            WaveFromImageSource.DrawLine(startPoint, middleTopLeftPoint, lineColor);
+            WaveFromImageSource.DrawLine(startPoint, middleBottomLeftPoint, lineColor);
+            WaveFromImageSource.DrawLine(middleTopLeftPoint, middleTopRightPoint, lineColor);
+            WaveFromImageSource.DrawLine(middleBottomLeftPoint, middleBottomRightPoint, lineColor);
+            WaveFromImageSource.DrawLine(middleTopRightPoint, endPoint, lineColor);
+            WaveFromImageSource.DrawLine(middleBottomRightPoint, endPoint, lineColor);
         }
 
-        var middleTopLeftPoint = new IntVector2d(startX + CrossWidth, topMargin);
-        var middleTopRightPoint = new IntVector2d(endX - CrossWidth, topMargin);
-        var middleBottomLeftPoint = new IntVector2d(startX + CrossWidth, topMargin + waveHeight);
-        var middleBottomRightPoint = new IntVector2d(endX - CrossWidth, topMargin + waveHeight);
-
-        WaveFromImageSource.DrawLine(startPoint, middleTopLeftPoint, lineColor);
-        WaveFromImageSource.DrawLine(startPoint, middleBottomLeftPoint, lineColor);
-        WaveFromImageSource.DrawLine(middleTopLeftPoint, middleTopRightPoint, lineColor);
-        WaveFromImageSource.DrawLine(middleBottomLeftPoint, middleBottomRightPoint, lineColor);
-        WaveFromImageSource.DrawLine(middleTopRightPoint, endPoint, lineColor);
-        WaveFromImageSource.DrawLine(middleBottomRightPoint, endPoint, lineColor);
-
-        // 十分なスペースがある場合のみ値を表示
+        // 十分なスペースがある場合のみ値を表示（ローカル座標で）
         if (durationX >= MinValueDisplayWidth)
         {
-            AddSignalValueTextBlock(value, startX, endX, waveTopMargin, item);
+            AddSignalValueTextBlock(value, visStart - viewportLeft, visEnd - viewportLeft, waveTopMargin, item);
         }
     }
 
@@ -328,8 +378,8 @@ public partial class SignalWaveformItem : UserControl
     /// 信号値を表示するTextBlockを追加
     /// </summary>
     /// <param name="value">表示する値</param>
-    /// <param name="startX">開始X座標</param>
-    /// <param name="endX">終了X座標</param>
+    /// <param name="startX">開始X座標（ローカル/ビューポート座標）</param>
+    /// <param name="endX">終了X座標（ローカル/ビューポート座標）</param>
     /// <param name="waveTopMargin">波形の上端マージン</param>
     /// <param name="item">信号表示アイテム</param>
     private void AddSignalValueTextBlock(VariableValue value, double startX, double endX, double waveTopMargin, VariableDisplayItem item)
@@ -347,7 +397,7 @@ public partial class SignalWaveformItem : UserControl
             FontFamily = new FontFamily("Consolas") // 等幅フォントを使用
         };
 
-        // TextBlockの位置を設定
+        // TextBlockの位置を設定（ローカルX座標）
         Canvas.SetLeft(textBlock, startX + (endX - startX) / 2 - 25); // 中央配置のため25px左にオフセット
         Canvas.SetTop(textBlock, waveTopMargin + WaveMargin + SingleWaveHeight / 2 - 8); // 中央配置のため8px上にオフセット
 
@@ -361,7 +411,10 @@ public partial class SignalWaveformItem : UserControl
         double waveHeight = SingleWaveHeight - 2 * WaveMargin;
         if (waveHeight <= 0) return;
 
-        double waveWidth = WaveWidth;
+        var vp = GetViewport();
+        double contentWidth = vp.ContentWidth;
+        double viewportLeft = vp.Offset;
+        double viewportWidth = vp.ViewportWidth;
 
         List<TimeValuePair> timeVal = VcdData.GetTimeValuePairs(item.VariableData.Id);
         if (timeVal.Count <= 0) return;
@@ -378,11 +431,11 @@ public partial class SignalWaveformItem : UserControl
 
             if (isOneBit)
             {
-                RenderOneBitWaveFragment(waveHeight, waveWidth, topMargin + WaveMargin, beginTime, endTime, beginValue, endValue);
+                RenderOneBitWaveFragment(waveHeight, contentWidth, viewportLeft, viewportWidth, topMargin + WaveMargin, beginTime, endTime, beginValue, endValue);
             }
             else
             {
-                RenderMultiBitWaveFragment(waveHeight, waveWidth, topMargin + WaveMargin, beginTime, endTime, beginValue, item, topMargin);
+                RenderMultiBitWaveFragment(waveHeight, contentWidth, viewportLeft, viewportWidth, topMargin + WaveMargin, beginTime, endTime, beginValue, item, topMargin);
             }
         }
 
@@ -394,19 +447,19 @@ public partial class SignalWaveformItem : UserControl
 
         if (isOneBit)
         {
-            RenderOneBitWaveFragment(waveHeight, waveWidth, topMargin + WaveMargin, beginTime, endTime, beginValue, endValue);
+            RenderOneBitWaveFragment(waveHeight, contentWidth, viewportLeft, viewportWidth, topMargin + WaveMargin, beginTime, endTime, beginValue, endValue);
         }
         else
         {
-            RenderMultiBitWaveFragment(waveHeight, waveWidth, topMargin + WaveMargin, beginTime, endTime, beginValue, item, topMargin);
+            RenderMultiBitWaveFragment(waveHeight, contentWidth, viewportLeft, viewportWidth, topMargin + WaveMargin, beginTime, endTime, beginValue, item, topMargin);
         }
     }
 
     public void RenderWaveforms()
     {
         if (VcdData is null) return;
-
         if (DrawSignalVariableDisplayItem is null) return;
+
         CreateAndSetWriteableBitmap();
 
         // SignalValueDrawerをクリア
@@ -538,7 +591,7 @@ public partial class SignalWaveformItem : UserControl
             if (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift))
             {
                 // Shiftキーも押されている場合は、より大きな変化量で拡大縮小
-                mag = 3.0;
+                mag = 2.0;
             }
 
             double newMagnification;
@@ -561,5 +614,22 @@ public partial class SignalWaveformItem : UserControl
             // Ctrlキーが押されていない場合はスクロールイベントを伝播させる
             e.Handled = false;
         }
+    }
+
+    private void UserControl_Loaded(object sender, RoutedEventArgs e)
+    {
+        DpiScale = VisualTreeHelper.GetDpi(this);
+    }
+
+    private void WaveScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        // スクロール位置に合わせて再描画
+        RenderWaveforms();
+    }
+
+    private void WaveScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        // ビューポートサイズ変更時に再描画
+        RenderWaveforms();
     }
 }

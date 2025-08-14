@@ -9,6 +9,7 @@
                                      IsDesignTimeCreatable=True}"
     d:DesignHeight="450"
     d:DesignWidth="800"
+    Loaded="UserControl_Loaded"
     PreviewMouseWheel="UserControl_PreviewMouseWheel"
     SnapsToDevicePixels="True"
     UseLayoutRounding="True"
@@ -42,10 +43,10 @@
         </Border>
 
         <!--  波形表示用の部分  -->
-        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto">
+        <ScrollViewer x:Name="WaveScrollViewer" Grid.Column="1" HorizontalScrollBarVisibility="Auto" ScrollChanged="WaveScrollViewer_ScrollChanged" SizeChanged="WaveScrollViewer_SizeChanged">
             <Grid
                 x:Name="WaveDrawGrid"
-                MinWidth="100"
+                Width="100"
                 HorizontalAlignment="Left">
                 <!--  波形表示用のImage  -->
                 <Image
