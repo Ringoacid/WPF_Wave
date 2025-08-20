@@ -2,6 +2,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -384,22 +385,55 @@ public partial class SignalWaveformItem : UserControl
     /// <param name="item">信号表示アイテム</param>
     private void AddSignalValueTextBlock(VariableValue value, double startX, double endX, double waveTopMargin, VariableDisplayItem item)
     {
+        // 文字列を測定してから描画可否を判定
+        string text = value.ToString();
+        double fontSize = Math.Min(12, SingleWaveHeight / 4);
+        var typeface = new Typeface(new FontFamily("Consolas"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+        double pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+        var foregroundBrush = value.IsUndefined ? Brushes.Red : value.IsHighImpedance ? Brushes.Brown : Brushes.Black;
+
+        var formatted = new FormattedText(
+            text,
+            CultureInfo.CurrentUICulture,
+            FlowDirection.LeftToRight,
+            typeface,
+            fontSize,
+            foregroundBrush,
+            pixelsPerDip);
+
+        // TextBlock.Padding と同等の内側余白を考慮
+        const double padding = 2.0;
+        double textWidth = formatted.WidthIncludingTrailingWhitespace + padding * 2;
+        double textHeight = formatted.Height + padding * 2;
+
+        // クロスの内側に文字を置く（視覚的な重なりを避ける）
+        double innerStartX = startX + CrossWidth;
+        double innerEndX = endX - CrossWidth;
+        double availableWidth = Math.Max(0, innerEndX - innerStartX);
+        if (textWidth > availableWidth)
+        {
+            // スペース不足なら描画しない
+            return;
+        }
+
         var textBlock = new TextBlock
         {
-            Text = value.ToString(),
-            FontSize = Math.Min(12, SingleWaveHeight / 4), // 波形の高さに応じてフォントサイズを調整
-            Foreground = value.IsUndefined ? Brushes.Red :
-                        value.IsHighImpedance ? Brushes.Brown : Brushes.Black,
+            Text = text,
+            FontSize = fontSize,
+            Foreground = foregroundBrush,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             Background = Brushes.White,
-            Padding = new Thickness(2),
-            FontFamily = new FontFamily("Consolas") // 等幅フォントを使用
+            Padding = new Thickness(padding),
+            FontFamily = new FontFamily("Consolas")
         };
 
-        // TextBlockの位置を設定（ローカルX座標）
-        Canvas.SetLeft(textBlock, startX + (endX - startX) / 2 - 25); // 中央配置のため25px左にオフセット
-        Canvas.SetTop(textBlock, waveTopMargin + WaveMargin + SingleWaveHeight / 2 - 8); // 中央配置のため8px上にオフセット
+        // 中央配置（クロス内側領域の中心）
+        double left = innerStartX + (availableWidth - textWidth) / 2.0;
+        double top = waveTopMargin + (SingleWaveHeight - textHeight) / 2.0;
+
+        Canvas.SetLeft(textBlock, left);
+        Canvas.SetTop(textBlock, top);
 
         SignalValueDrawer.Children.Add(textBlock);
     }

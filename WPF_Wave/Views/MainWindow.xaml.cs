@@ -46,6 +46,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     
     private void SetDebugText()
     {
+        /*
         List<string> texts = [];
         texts.Add($"Waveform.Magnification{Waveform.Magnification}");
         texts.Add($"Waveform.MinMagnification{Waveform.MinMagnification}");
@@ -54,6 +55,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         texts.Add($"Waveform.WaveFromImageSource.PixelWidth{Waveform.WaveFromImageSource.PixelWidth}");
 
         DebugTextBlock.Text = string.Join("\n", texts);
+        */
     }
 
     public MainWindow()

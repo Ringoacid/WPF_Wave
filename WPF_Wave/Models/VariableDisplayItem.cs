@@ -102,9 +102,9 @@ public class VariableDisplayItem : INotifyPropertyChanged
     /// "Type: Name (BitWidth bits)" の形式で表示
     /// 例: "Wire: clk (1 bits)", "Reg: counter (8 bits)"
     /// </summary>
-    public string DisplayText => $"{Type}: {Name} ({BitWidth} bits)";
+    public string DisplayText => (BitWidth == 1) ? $"{Type}: {Name} ({BitWidth} bit)" : $"{Type}: {Name} ({BitWidth} bits)";
 
-    public string DescriptionText => $"{Type}: ({BitWidth} bits)";
+    public string DescriptionText => (BitWidth == 1) ? $"{Type}: ({BitWidth} bit" : $"{Type}: ({BitWidth} bits";
 
     #endregion
 

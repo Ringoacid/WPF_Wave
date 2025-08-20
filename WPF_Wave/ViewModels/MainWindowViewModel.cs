@@ -275,6 +275,7 @@ public partial class MainWindowViewModel : ObservableObject
 
                 SignalList.Clear();
                 SelectedSignalsForWaveform.Clear();
+                FirstSelectedSignalsForWaveForm = null;
             }
         }
         catch (Exception ex)
