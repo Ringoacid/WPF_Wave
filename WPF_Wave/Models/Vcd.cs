@@ -24,16 +24,18 @@ public class Vcd
     public Module? TopModule { get; set; }
 
     /// <summary>
-    /// 1nsに対するタイムスケール
-    /// 1nsなら1
-    /// 1psなら1000
-    /// 1msなら1000000
-    /// 1sなら1000000000
+    /// #1;などの命令に対するタイムスケール。
+    /// 1 ps -> 1
+    /// 10ps -> 10
+    /// 1 ns -> 1000
+    /// 1 us -> 1000000
+    /// 1 ms -> 1000000000
+    /// 1 s  -> 1000000000000
     /// </summary>
     public long TimeScale { get; set; } = 1;
 
     /// <summary>
-    /// IDをキー、時間と値のペアのリストを値とする辞書
+    /// IDをキー、時間と値のペアのリストを値とする辞書。時間の単位はps。
     /// </summary>
     public Dictionary<string, List<TimeValuePair>> ID_TimeValue_Pairs { get; set; } = [];
 
@@ -43,7 +45,7 @@ public class Vcd
     public Dictionary<string, Variable> ID_Variable_Pairs { get; set; } = [];
 
     /// <summary>
-    /// シミュレーション全体の時間
+    /// シミュレーション全体の時間。単位はps。
     /// </summary>
     public long SimulationTime { get; private set; } = 0;
 
@@ -110,7 +112,7 @@ public class Vcd
                     throw new FormatException($"Invalid time format : {line}. Expected a valid number.");
                 }
 
-                currentTime = time * TimeScale; // タイムスケールに基づいて時間を調整
+                currentTime = time;
                 SimulationTime = Math.Max(SimulationTime, currentTime); // 最後に読み込んだ時間をシミュレーション時間として保存
                 continue;
             }

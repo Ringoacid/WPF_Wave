@@ -104,7 +104,7 @@ public class VariableDisplayItem : INotifyPropertyChanged
     /// </summary>
     public string DisplayText => (BitWidth == 1) ? $"{Type}: {Name} ({BitWidth} bit)" : $"{Type}: {Name} ({BitWidth} bits)";
 
-    public string DescriptionText => (BitWidth == 1) ? $"{Type}: ({BitWidth} bit" : $"{Type}: ({BitWidth} bits";
+    public string DescriptionText => (BitWidth == 1) ? $"{Type}: ({BitWidth} bit)" : $"{Type}: ({BitWidth} bits)";
 
     #endregion
 
