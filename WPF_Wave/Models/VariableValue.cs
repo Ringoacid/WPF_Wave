@@ -66,14 +66,14 @@ public class VariableValue : IEnumerable<VariableValue.BitType>
         _data = data;
     }
 
-    public VariableValue(string binaryString)
+    public VariableValue(string binaryString, int bitWidth)
     {
         if (binaryString.StartsWith("0b"))
         {
             binaryString = binaryString.Substring(2); // "0b"を除去
         }
 
-        _data = new BitType[binaryString.Length];
+        _data = new BitType[bitWidth];
 
         for (int i = binaryString.Length - 1, j = 0; i >= 0; i--, j++)
         {
@@ -97,6 +97,11 @@ public class VariableValue : IEnumerable<VariableValue.BitType>
                     throw new FormatException("Invalid character in binary string.");
             }
         }
+    }
+
+    public VariableValue(string binaryString) : this(binaryString, binaryString.StartsWith("0b") ? binaryString.Length - 2 : binaryString.Length)
+    {
+        
     }
 
     public VariableValue(VariableValue other)

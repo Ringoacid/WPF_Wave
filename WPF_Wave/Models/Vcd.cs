@@ -332,7 +332,7 @@ public class Vcd
             throw new ArgumentException("Binary string cannot be null or empty.", nameof(valueString));
 
         var bitWidth = ID_Variable_Pairs[id].BitWidth;
-        var val = new VariableValue(valueString);
+        var val = new VariableValue(valueString, bitWidth);
         return val;
     }
 

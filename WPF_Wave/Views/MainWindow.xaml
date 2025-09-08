@@ -10,11 +10,11 @@
     xmlns:uc="clr-namespace:WPF_Wave.UserControls"
     xmlns:vm="clr-namespace:WPF_Wave.ViewModels"
     Title="VCD Wave"
-    ScrollViewer.CanContentScroll="False"
     Width="1000"
     Height="600"
     d:DataContext="{d:DesignInstance Type=local:MainWindow,
                                      IsDesignTimeCreatable=True}"
+    ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
 
     <Window.Resources>
@@ -202,11 +202,13 @@
                         x:Name="Waveform"
                         Margin="0,5,0,0"
                         VerticalAlignment="Top"
-                        Signals="{Binding ViewModel.SelectedSignalsForWaveform}"
                         LabelBackground="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                         LabelBorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                        LabelNameForeground="{DynamicResource TextFillColorPrimaryBrush}"
                         LabelDescriptionForeground="{DynamicResource TextFillColorSecondaryBrush}"
+                        LabelNameForeground="{DynamicResource TextFillColorPrimaryBrush}"
+                        Signals="{Binding ViewModel.SelectedSignalsForWaveform}"
+                        TimeAxisTextBrush="{DynamicResource TextFillColorPrimaryBrush}"
+                        TimeAxisTickBrush="{DynamicResource TextFillColorPrimaryBrush}"
                         VcdData="{Binding ViewModel.ActiveVcd}" />
                 </ScrollViewer>
             </Grid>

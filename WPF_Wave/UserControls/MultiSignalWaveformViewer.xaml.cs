@@ -109,6 +109,45 @@ public partial class MultiSignalWaveformViewer : UserControl
         set => SetValue(MagnificationProperty, value);
     }
 
+    // ===== 時間軸の見た目制御用 依存関係プロパティ =====
+    public static readonly DependencyProperty TimeAxisTickBrushProperty =
+        DependencyProperty.Register(nameof(TimeAxisTickBrush), typeof(Brush), typeof(MultiSignalWaveformViewer),
+            new FrameworkPropertyMetadata(Brushes.Black, FrameworkPropertyMetadataOptions.AffectsRender, OnTimeAxisAppearanceChanged));
+
+    public Brush TimeAxisTickBrush
+    {
+        get => (Brush)GetValue(TimeAxisTickBrushProperty);
+        set => SetValue(TimeAxisTickBrushProperty, value);
+    }
+
+    public static readonly DependencyProperty TimeAxisTextBrushProperty =
+        DependencyProperty.Register(nameof(TimeAxisTextBrush), typeof(Brush), typeof(MultiSignalWaveformViewer),
+            new FrameworkPropertyMetadata(Brushes.Black, FrameworkPropertyMetadataOptions.AffectsRender, OnTimeAxisAppearanceChanged));
+
+    public Brush TimeAxisTextBrush
+    {
+        get => (Brush)GetValue(TimeAxisTextBrushProperty);
+        set => SetValue(TimeAxisTextBrushProperty, value);
+    }
+
+    public static readonly DependencyProperty TimeAxisBackgroundProperty =
+        DependencyProperty.Register(nameof(TimeAxisBackground), typeof(Brush), typeof(MultiSignalWaveformViewer),
+            new FrameworkPropertyMetadata(Brushes.Transparent, FrameworkPropertyMetadataOptions.AffectsRender, OnTimeAxisAppearanceChanged));
+
+    public Brush TimeAxisBackground
+    {
+        get => (Brush)GetValue(TimeAxisBackgroundProperty);
+        set => SetValue(TimeAxisBackgroundProperty, value);
+    }
+
+    private static void OnTimeAxisAppearanceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is MultiSignalWaveformViewer v)
+        {
+            v.RenderTimeAxis();
+        }
+    }
+
     // ラベル(Border)および文字色設定用 依存関係プロパティ
     public static readonly DependencyProperty LabelBackgroundProperty =
         DependencyProperty.Register(nameof(LabelBackground), typeof(Brush), typeof(MultiSignalWaveformViewer),
@@ -295,6 +334,11 @@ public partial class MultiSignalWaveformViewer : UserControl
 
     private const double MinValueDisplayWidth = 50.0;
 
+    private bool TryIntersect(double a0, double a1, double b0, double b1, out double i0, double bEnd)
+    {
+        double i1;
+        return TryIntersect(a0, a1, b0, bEnd, out i0, out i1);
+    }
     private bool TryIntersect(double a0, double a1, double b0, double b1, out double i0, out double i1)
     {
         i0 = System.Math.Max(a0, b0);
@@ -499,6 +543,9 @@ public partial class MultiSignalWaveformViewer : UserControl
         if (VcdData is null)
             return;
 
+        // 背景色の適用
+        TimeAxisCanvas.Background = TimeAxisBackground;
+
         long totalTime = Math.Max(1, VcdData.SimulationTime);
         double contentWidth = WaveDrawGrid.ActualWidth > 0 ? WaveDrawGrid.ActualWidth : WaveDrawGrid.Width;
         if (contentWidth <= 0)
@@ -521,17 +568,17 @@ public partial class MultiSignalWaveformViewer : UserControl
         long endTimeVisible = (long)Math.Ceiling((viewportLeft + viewportWidth) / pixelsPerTime);
         if (endTimeVisible > totalTime) endTimeVisible = totalTime;
 
-        // 最初の目盛り
+        // 最初の目盛り（startTimeVisible 以上の最初の niceTimeStep の倍数）
         long firstTick = ((startTimeVisible + niceTimeStep - 1) / niceTimeStep) * niceTimeStep;
 
-        const double tickBottom = 28.0; // キャンバス高さ 30 を想定
         const double tickHeight = 10.0;
-        var tickBrush = Brushes.Black;
+        var tickBrush = TimeAxisTickBrush;
+        var labelBrush = TimeAxisTextBrush;
 
         for (long t = firstTick; t <= endTimeVisible; t += niceTimeStep)
         {
-            double x = t * pixelsPerTime; // グローバルX
-            double localX = x; // TimeAxisCanvasはスクロール対象なのでそのまま
+            double xGlobal = t * pixelsPerTime; // コンテンツ全体のX
+            double xLocal = xGlobal - viewportLeft; // ビューポート左端を原点とするX
 
             // ラベルテキスト
             string label = FormatTime(t, VcdData);
@@ -539,21 +586,21 @@ public partial class MultiSignalWaveformViewer : UserControl
             {
                 Text = label,
                 FontSize = 12,
-                Foreground = tickBrush,
+                Foreground = labelBrush,
                 Background = Brushes.Transparent
             };
             TimeAxisCanvas.Children.Add(tb);
             tb.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             double textWidth = tb.DesiredSize.Width;
             double textHeight = tb.DesiredSize.Height;
-            Canvas.SetLeft(tb, localX - textWidth / 2);
+            Canvas.SetLeft(tb, xLocal - textWidth / 2);
             Canvas.SetTop(tb, 0);
 
             // 目盛り線（テキスト下に表示）
             var line = new Line
             {
-                X1 = localX,
-                X2 = localX,
+                X1 = xLocal,
+                X2 = xLocal,
                 Y1 = textHeight + 2,
                 Y2 = textHeight + 2 + tickHeight,
                 Stroke = tickBrush,
@@ -577,49 +624,39 @@ public partial class MultiSignalWaveformViewer : UserControl
         return niceMant * baseVal;
     }
 
-    // 時間値(timeValue * TimeScale[ps])を適切な単位(s, ms, us, ns, ps)へ変換して文字列化
+    // 時間値(timeValue [ps])を適切な単位(s, ms, us, ns, ps)へ変換して文字列化
     private string FormatTime(long timeValue, Vcd vcd)
     {
-        // 実時間[ps]（オーバーフロー回避のためdouble）
         if (timeValue <= 0) return "0ps";
 
-        // 閾値は「その単位に切り替える最小ps値」
-        // 大きい順に評価
-        const double psPerS = 1_000_000_000_000d; // 1s = 1e12 ps
-        const double psPerMs = 1_000_000_000d;     // 1ms = 1e9 ps
-        const double psPerUs = 1_000_000d;         // 1us = 1e6 ps
-        const double psPerNs = 1_000d;             // 1ns = 1e3 ps
-        // 1ps = 1
+        const double psPerS = 1_000_000_000_000d;
+        const double psPerMs = 1_000_000_000d;
+        const double psPerUs = 1_000_000d;
+        const double psPerNs = 1_000d;
 
         double value;
         string unit;
         if (timeValue >= psPerS)
         {
-            value = timeValue / psPerS;
-            unit = "s";
+            value = timeValue / psPerS; unit = "s";
         }
         else if (timeValue >= psPerMs)
         {
-            value = timeValue / psPerMs;
-            unit = "ms";
+            value = timeValue / psPerMs; unit = "ms";
         }
         else if (timeValue >= psPerUs)
         {
-            value = timeValue / psPerUs;
-            unit = "us";
+            value = timeValue / psPerUs; unit = "us";
         }
         else if (timeValue >= psPerNs)
         {
-            value = timeValue / psPerNs;
-            unit = "ns";
+            value = timeValue / psPerNs; unit = "ns";
         }
         else
         {
-            value = timeValue;
-            unit = "ps";
+            value = timeValue; unit = "ps";
         }
 
-        // 桁数フォーマット: 値の大きさに応じて小数桁を制御
         string fmt = value < 1 ? "0.###"
                     : value < 10 ? "0.###"
                     : value < 100 ? "0.##"
@@ -811,9 +848,19 @@ public partial class MultiSignalWaveformViewer : UserControl
 
         if (ctrl)
         {
+            // 拡大前のマウスの位置を取得
+            Point prev_mousePositionOnCanvas = e.GetPosition(WaveDrawGrid);
+            Point prev_mousePositionOnScrollViewer = e.GetPosition(WaveScrollViewer);
+
             double mag = shift ? 2.0 : 1.1;
+            double oldMag = Magnification;
             double newMag = e.Delta > 0 ? (Magnification * mag) : (Magnification / mag);
             Magnification = Math.Clamp(newMag, MinMagnification, MaxMagnification);
+
+            double new_mousePositionOnCanvasX = prev_mousePositionOnCanvas.X * (Magnification / oldMag);
+
+            WaveScrollViewer.ScrollToHorizontalOffset(new_mousePositionOnCanvasX - prev_mousePositionOnScrollViewer.X);
+
             e.Handled = true;
             return;
         }
