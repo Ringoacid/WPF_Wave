@@ -704,6 +704,13 @@ public partial class MultiSignalWaveformViewer : UserControl
             };
             border.MouseLeftButtonDown += Label_MouseLeftButtonDown;
 
+            // コンテキストメニュー（右クリック）
+            var cm = new ContextMenu();
+            var deleteItem = new MenuItem { Header = "削除", Tag = sig };
+            deleteItem.Click += DeleteSignalMenuItem_Click;
+            cm.Items.Add(deleteItem);
+            border.ContextMenu = cm;
+
             var sp = new StackPanel { Orientation = Orientation.Vertical };
             sp.Children.Add(new TextBlock { Text = sig.Name, FontWeight = FontWeights.Bold, Foreground = LabelNameForeground });
             sp.Children.Add(new TextBlock { Text = sig.DescriptionText, FontSize = 10, Foreground = LabelDescriptionForeground });
@@ -738,6 +745,17 @@ public partial class MultiSignalWaveformViewer : UserControl
         var totalWavesHeight = TotalImageHeight();
         var desiredHeight = System.Math.Max(totalWavesHeight, totalHeight);
         LeftScrollViewer.Height = desiredHeight;
+    }
+
+    // コンテキストメニュー: 削除
+    private void DeleteSignalMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem mi) return;
+        if (mi.Tag is not VariableDisplayItem item) return;
+        if (Signals == null) return;
+
+        // 直接削除（CollectionChangedによりUIは再構築される）
+        Signals.Remove(item);
     }
 
     // 並べ替え（ドラッグ&ドロップ）簡易実装
