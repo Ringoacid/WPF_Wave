@@ -175,10 +175,10 @@ public class VariableValue : IEnumerable<VariableValue.BitType>
                 bool hasZ = false;
                 int nibbleValue = 0;
 
-                // 4bitを処理
-                for (int j = 3; j >= 0; j--)
+                // 4bitを処理（LSB→MSBの重みで構築）
+                for (int k = 0; k < 4; k++)
                 {
-                    int bitIndex = i + j;
+                    int bitIndex = i + k; // nibble内のLSBから順に0..3
                     BitType bit;
 
                     if (bitIndex >= BitWidth)
@@ -194,10 +194,9 @@ public class VariableValue : IEnumerable<VariableValue.BitType>
                     switch (bit)
                     {
                         case BitType.Zero:
-                            // nibbleValueには何も加算しない（0として扱う）
                             break;
                         case BitType.One:
-                            nibbleValue += (1 << (3 - j));
+                            nibbleValue |= (1 << k);
                             break;
                         case BitType.X:
                             hasX = true;

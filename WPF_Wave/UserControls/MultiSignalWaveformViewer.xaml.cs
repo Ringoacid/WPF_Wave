@@ -287,6 +287,11 @@ public partial class MultiSignalWaveformViewer : UserControl
             BuildLeftLabels();
             RenderWaveforms();
         }
+        else if (e.PropertyName == nameof(VariableDisplayItem.DisplayFormat))
+        {
+            // 表示フォーマット変更時は波形の値表示のみ更新
+            RenderWaveforms();
+        }
     }
 
     private double TotalImageHeight()
@@ -457,7 +462,7 @@ public partial class MultiSignalWaveformViewer : UserControl
 
     private void AddSignalValueTextBlock(VariableValue value, double startX, double endX, double waveTopMargin, VariableDisplayItem item)
     {
-        string text = value.ToString();
+        string text = value.ToString(item.DisplayFormat);
         double fontSize = System.Math.Min(12, SingleWaveHeight / 4);
         var typeface = new Typeface(new FontFamily("Consolas"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
         double pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
@@ -730,9 +735,29 @@ public partial class MultiSignalWaveformViewer : UserControl
 
             // コンテキストメニュー（右クリック）
             var cm = new ContextMenu();
+
+            // 表示フォーマット変更
+            var changeFormat = new MenuItem { Header = "表示フォーマットの変更" };
+            
+            cm.Items.Add(changeFormat);
+            // Binary
+            var fmtBin = new MenuItem { Header = "2進数 (Binary)", IsCheckable = true, IsChecked = sig.DisplayFormat == StringFormat.Binary, Tag = (changeFormat, sig, StringFormat.Binary) };
+            fmtBin.Click += ChangeFormatMenuItem_Click;
+            changeFormat.Items.Add(fmtBin);
+            // Decimal
+            var fmtDec = new MenuItem { Header = "10進数 (Decimal)", IsCheckable = true, IsChecked = sig.DisplayFormat == StringFormat.Decimal, Tag = (changeFormat, sig, StringFormat.Decimal) };
+            fmtDec.Click += ChangeFormatMenuItem_Click;
+            changeFormat.Items.Add(fmtDec);
+            // Hex
+            var fmtHex = new MenuItem { Header = "16進数 (Hex)", IsCheckable = true, IsChecked = sig.DisplayFormat == StringFormat.Hexadecimal, Tag = (changeFormat, sig, StringFormat.Hexadecimal) };
+            fmtHex.Click += ChangeFormatMenuItem_Click;
+            changeFormat.Items.Add(fmtHex);
+
+            // 削除
             var deleteItem = new MenuItem { Header = "削除", Tag = sig };
             deleteItem.Click += DeleteSignalMenuItem_Click;
             cm.Items.Add(deleteItem);
+
             border.ContextMenu = cm;
 
             var sp = new StackPanel { Orientation = Orientation.Vertical };
@@ -769,6 +794,46 @@ public partial class MultiSignalWaveformViewer : UserControl
         var totalWavesHeight = TotalImageHeight();
         var desiredHeight = System.Math.Max(totalWavesHeight, totalHeight);
         LeftScrollViewer.Height = desiredHeight;
+    }
+
+    private void ChangeFormatMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem mi) return;
+        if (mi.Tag is not ValueTuple<MenuItem, VariableDisplayItem, StringFormat> tuple)
+        {
+            return;
+        }
+
+        var (menuitem, item, format) = tuple;
+        if (item.DisplayFormat == format)
+        {
+            return;
+        }
+
+        item.DisplayFormat = format;
+        RenderWaveforms();
+
+        StringFormat activeFormat = format;
+        foreach (var formatmenu in menuitem.Items)
+        {
+            if (formatmenu is not MenuItem fmtmi) continue;
+
+            if (fmtmi.Tag is not ValueTuple<MenuItem, VariableDisplayItem, StringFormat> fmtTuple)
+            {
+                continue;
+            }
+
+            (menuitem, item, format) = fmtTuple;
+
+            if(format == activeFormat)
+            {
+                fmtmi.IsChecked = true;
+            }
+            else
+            {
+                fmtmi.IsChecked = false;
+            }
+        }
     }
 
     // コンテキストメニュー: 削除

@@ -30,6 +30,11 @@ public class VariableDisplayItem : INotifyPropertyChanged
     /// </summary>
     private int bitWidth;
 
+    /// <summary>
+    /// 値の表示フォーマット
+    /// </summary>
+    private StringFormat displayFormat = StringFormat.Binary;
+
     #endregion
 
     #region パブリックプロパティ
@@ -96,6 +101,22 @@ public class VariableDisplayItem : INotifyPropertyChanged
     /// VCDファイルから読み込んだ詳細な変数情報にアクセスするために使用
     /// </summary>
     public Variable VariableData { get; set; } = null!;
+
+    /// <summary>
+    /// 値の表示フォーマット（2進/10進/16進）
+    /// </summary>
+    public StringFormat DisplayFormat
+    {
+        get => displayFormat;
+        set
+        {
+            if (displayFormat != value)
+            {
+                displayFormat = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
     /// <summary>
     /// 表示用フォーマット済みテキスト
