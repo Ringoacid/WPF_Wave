@@ -278,9 +278,9 @@ public class Vcd
 
         string scopeType = parts[1];
         string scopeName = parts[2];
-        if (scopeType != "module" && scopeType != "function")
+        if (scopeType != "module" && scopeType != "function" && scopeType != "task")
         {
-            throw new FormatException($"Unsupported scope type : {scopeType}. Only 'module' and 'function' are supported.");
+            throw new FormatException($"Unsupported scope type : {scopeType}. Only 'module','function' and 'task' are supported.");
         }
 
         var module = new Module(scopeName);

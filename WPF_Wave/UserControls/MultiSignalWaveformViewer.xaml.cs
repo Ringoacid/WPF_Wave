@@ -298,8 +298,14 @@ public partial class MultiSignalWaveformViewer : UserControl
 
     private WriteableBitmap CreateWriteableBitmap(double width, double height)
     {
-        if (_dpi == null) return new WriteableBitmap((int)System.Math.Ceiling(width), (int)System.Math.Ceiling(height), 96, 96, PixelFormats.Bgr32, null);
-        return new WriteableBitmap((int)System.Math.Ceiling(width), (int)System.Math.Ceiling(height), _dpi.Value.PixelsPerInchX, _dpi.Value.PixelsPerInchY, PixelFormats.Bgr32, null);
+        // width/height: DIP (logical units). Allocate pixel buffer using real DPI so that the Image shows the expected DIP size.
+        double scaleX = _dpi?.DpiScaleX ?? 1.0;
+        double scaleY = _dpi?.DpiScaleY ?? 1.0;
+        int pixelWidth = (int)System.Math.Ceiling(width * scaleX);
+        int pixelHeight = (int)System.Math.Ceiling(height * scaleY);
+        double dpiX = (_dpi?.PixelsPerInchX) ?? 96.0;
+        double dpiY = (_dpi?.PixelsPerInchY) ?? 96.0;
+        return new WriteableBitmap(pixelWidth, pixelHeight, dpiX, dpiY, PixelFormats.Bgr32, null);
     }
 
     private void CreateAndSetWriteableBitmap()
@@ -313,7 +319,7 @@ public partial class MultiSignalWaveformViewer : UserControl
 
         WaveFromImage.Source = WaveFromImageSource = CreateWriteableBitmap(viewportWidth, imageHeight);
 
-        // スクロールに合わせて左マージン調整
+        // スクロールに合わせて左マージン調整（DIP）
         var left = WaveScrollViewer.HorizontalOffset;
         WaveFromImage.Margin = new Thickness(left, 0, 0, 0);
         SignalValueDrawer.Margin = new Thickness(left, 0, 0, 0);
@@ -346,6 +352,11 @@ public partial class MultiSignalWaveformViewer : UserControl
         return i1 > i0;
     }
 
+    // Helper: DIP -> pixel conversion
+    private int DipToPixelX(double x) => (int)System.Math.Round(x * (_dpi?.DpiScaleX ?? 1.0));
+    private int DipToPixelY(double y) => (int)System.Math.Round(y * (_dpi?.DpiScaleY ?? 1.0));
+    private IntVector2d ToPixel(double xDip, double yDip) => new IntVector2d(DipToPixelX(xDip), DipToPixelY(yDip));
+
     private void RenderOneBitWaveFragment(double waveHeight, double contentWidth, double viewportLeft, double viewportWidth, double topMargin,
         long startTime, long endTime, VariableValue beginVal, VariableValue endVal)
     {
@@ -356,25 +367,29 @@ public partial class MultiSignalWaveformViewer : UserControl
         bool isEndHigh = endVal[0] == VariableValue.BitType.One;
 
         long totalTime = System.Math.Max(1, VcdData.SimulationTime);
-        double startXGlobal = startTime * contentWidth / totalTime;
-        double endXGlobal = endTime * contentWidth / totalTime;
+        double startXGlobal = startTime * contentWidth / totalTime; // DIP
+        double endXGlobal = endTime * contentWidth / totalTime;     // DIP
         if (!TryIntersect(startXGlobal, endXGlobal, viewportLeft, viewportLeft + viewportWidth, out var visStart, out var visEnd))
         {
             return;
         }
 
-        double yBegin = topMargin + (isBeginHigh ? 0 : waveHeight);
-        double yEnd = topMargin + (isEndHigh ? 0 : waveHeight);
+        double yBeginDip = topMargin + (isBeginHigh ? 0 : waveHeight);
+        double yEndDip = topMargin + (isEndHigh ? 0 : waveHeight);
 
-        var startPoint = new IntVector2d(visStart - viewportLeft, yBegin);
-        var middlePoint = new IntVector2d(visEnd - viewportLeft, yBegin);
+        // ローカル座標(ビューポート左を原点)に変換（DIP）
+        double startLocalXDip = visStart - viewportLeft;
+        double endLocalXDip = visEnd - viewportLeft;
+
+        var startPoint = ToPixel(startLocalXDip, yBeginDip);
+        var middlePoint = ToPixel(endLocalXDip, yBeginDip);
 
         var color = beginVal.IsUndefined ? Colors.Red : beginVal.IsHighImpedance ? Colors.Brown : Colors.Blue;
         WaveFromImageSource.DrawLine(startPoint, middlePoint, color);
 
         if (endXGlobal >= viewportLeft && endXGlobal <= viewportLeft + viewportWidth)
         {
-            var endPoint = new IntVector2d(middlePoint.X, yEnd);
+            var endPoint = ToPixel(endLocalXDip, yEndDip);
             WaveFromImageSource.DrawLine(middlePoint, endPoint, color);
         }
     }
@@ -388,22 +403,30 @@ public partial class MultiSignalWaveformViewer : UserControl
         var color = value.IsUndefined ? Colors.Red : value.IsHighImpedance ? Colors.Brown : Colors.Blue;
 
         long totalTime = System.Math.Max(1, VcdData.SimulationTime);
-        double startXGlobal = startTime * contentWidth / totalTime;
-        double endXGlobal = endTime * contentWidth / totalTime;
+        double startXGlobal = startTime * contentWidth / totalTime; // DIP
+        double endXGlobal = endTime * contentWidth / totalTime;     // DIP
         if (!TryIntersect(startXGlobal, endXGlobal, viewportLeft, viewportLeft + viewportWidth, out var visStart, out var visEnd))
         {
             return;
         }
 
-        double durationX = visEnd - visStart;
-        var startPoint = new IntVector2d(visStart - viewportLeft, topMargin + (waveHeight / 2));
-        var endPoint = new IntVector2d(visEnd - viewportLeft, topMargin + (waveHeight / 2));
+        // ローカル座標(ビューポート左を原点)に変換（DIP）
+        double startLocalXDip = visStart - viewportLeft;
+        double endLocalXDip = visEnd - viewportLeft;
+        double durationXDip = endLocalXDip - startLocalXDip;
 
-        if (durationX < CrossWidth * 2)
+        double yCenterDip = topMargin + (waveHeight / 2);
+        double yTopDip = topMargin;
+        double yBottomDip = topMargin + waveHeight;
+
+        var startPoint = ToPixel(startLocalXDip, yCenterDip);
+        var endPoint = ToPixel(endLocalXDip, yCenterDip);
+
+        if (durationXDip < CrossWidth * 2)
         {
-            double middleLocalX = startPoint.X + durationX / 2;
-            var middleTopPoint = new IntVector2d(middleLocalX, topMargin);
-            var middleBottomPoint = new IntVector2d(middleLocalX, topMargin + waveHeight);
+            double middleLocalXDip = startLocalXDip + durationXDip / 2;
+            var middleTopPoint = ToPixel(middleLocalXDip, yTopDip);
+            var middleBottomPoint = ToPixel(middleLocalXDip, yBottomDip);
 
             WaveFromImageSource.DrawLine(startPoint, middleTopPoint, color);
             WaveFromImageSource.DrawLine(startPoint, middleBottomPoint, color);
@@ -412,10 +435,10 @@ public partial class MultiSignalWaveformViewer : UserControl
         }
         else
         {
-            var middleTopLeftPoint = new IntVector2d(startPoint.X + CrossWidth, topMargin);
-            var middleTopRightPoint = new IntVector2d(endPoint.X - CrossWidth, topMargin);
-            var middleBottomLeftPoint = new IntVector2d(startPoint.X + CrossWidth, topMargin + waveHeight);
-            var middleBottomRightPoint = new IntVector2d(endPoint.X - CrossWidth, topMargin + waveHeight);
+            var middleTopLeftPoint = ToPixel(startLocalXDip + CrossWidth, yTopDip);
+            var middleTopRightPoint = ToPixel(endLocalXDip - CrossWidth, yTopDip);
+            var middleBottomLeftPoint = ToPixel(startLocalXDip + CrossWidth, yBottomDip);
+            var middleBottomRightPoint = ToPixel(endLocalXDip - CrossWidth, yBottomDip);
 
             WaveFromImageSource.DrawLine(startPoint, middleTopLeftPoint, color);
             WaveFromImageSource.DrawLine(startPoint, middleBottomLeftPoint, color);
@@ -425,9 +448,10 @@ public partial class MultiSignalWaveformViewer : UserControl
             WaveFromImageSource.DrawLine(middleBottomRightPoint, endPoint, color);
         }
 
-        if (durationX >= MinValueDisplayWidth)
+        if (durationXDip >= MinValueDisplayWidth)
         {
-            AddSignalValueTextBlock(value, visStart - viewportLeft, visEnd - viewportLeft, waveTopMargin, item);
+            // 文字やCanvasはDIP座標で配置する
+            AddSignalValueTextBlock(value, startLocalXDip, endLocalXDip, waveTopMargin, item);
         }
     }
 
@@ -475,9 +499,9 @@ public partial class MultiSignalWaveformViewer : UserControl
         double waveHeight = SingleWaveHeight - 2 * WaveMargin;
         if (waveHeight <= 0) return;
 
-        double contentWidth = WaveDrawGrid.ActualWidth > 0 ? WaveDrawGrid.ActualWidth : WaveDrawGrid.Width;
-        double viewportLeft = WaveScrollViewer.HorizontalOffset;
-        double viewportWidth = WaveScrollViewer.ViewportWidth > 0 ? WaveScrollViewer.ViewportWidth : contentWidth;
+        double contentWidth = WaveDrawGrid.ActualWidth > 0 ? WaveDrawGrid.ActualWidth : WaveDrawGrid.Width; // DIP
+        double viewportLeft = WaveScrollViewer.HorizontalOffset;                                          // DIP
+        double viewportWidth = WaveScrollViewer.ViewportWidth > 0 ? WaveScrollViewer.ViewportWidth : contentWidth; // DIP
 
         var timeVal = VcdData.GetTimeValuePairs(item.VariableData.Id);
         if (timeVal.Count <= 0) return;
@@ -554,7 +578,7 @@ public partial class MultiSignalWaveformViewer : UserControl
         double viewportLeft = WaveScrollViewer.HorizontalOffset;
         double viewportWidth = WaveScrollViewer.ViewportWidth > 0 ? WaveScrollViewer.ViewportWidth : contentWidth;
 
-        double pixelsPerTime = contentWidth / totalTime; // px / time-unit
+        double pixelsPerTime = contentWidth / totalTime; // px (DIP) / time-unit
         if (pixelsPerTime <= 0 || double.IsInfinity(pixelsPerTime)) return;
 
         // 目標間隔(px)
@@ -577,8 +601,8 @@ public partial class MultiSignalWaveformViewer : UserControl
 
         for (long t = firstTick; t <= endTimeVisible; t += niceTimeStep)
         {
-            double xGlobal = t * pixelsPerTime; // コンテンツ全体のX
-            double xLocal = xGlobal - viewportLeft; // ビューポート左端を原点とするX
+            double xGlobal = t * pixelsPerTime; // コンテンツ全体のX (DIP)
+            double xLocal = xGlobal - viewportLeft; // ビューポート左端を原点とするX (DIP)
 
             // ラベルテキスト
             string label = FormatTime(t, VcdData);
