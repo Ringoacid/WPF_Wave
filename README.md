@@ -3,6 +3,11 @@ WPFで作成された、vcdファイル用の波形ビューワー。
 
 <img width="2240" height="1328" alt="image" src="https://github.com/user-attachments/assets/e8d11be9-101e-44ce-967e-9687e9ebc01b" />
 
+## インストール方法
+このリポジトリのReleasesから、zipファイルをダウンロードしてください。
+それを解凍すると、中に"WPF_Wave.exe"という実行可能ファイルがあるはずなのでそれを実行してください。
+ただし、Windows11 24H2以外での動作検証は行っていません。また、WPFは「Windows Presentation Foundation」というくらいなので、Windows以外では動作しません。
+
 ## 各部の名称・使い方
 以下に動作画面を示します。
 <img width="2240" height="1328" alt="image" src="https://github.com/user-attachments/assets/aa9e4a3c-23da-4e4e-9e2f-e2891f89f5ae" />
